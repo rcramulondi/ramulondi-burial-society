@@ -1,0 +1,312 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ---------- Enums ----------
+
+enum Role {
+  MEMBER
+  ADMIN
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+enum MembershipType {
+  MAIN
+  KHADZI
+}
+
+enum MemberStatus {
+  ACTIVE
+  ABOUT_TO_LAPSE
+  IN_ACTIVE
+  DECEASED
+}
+
+enum Fund {
+  BURIAL
+  FOOD
+}
+
+enum RelationshipType {
+  FATHER
+  MOTHER
+  SPOUSE
+  SON
+  DAUGHTER
+  DEPENDENT
+  OTHER
+}
+
+enum PaymentCategory {
+  MONTHLY_CONTRIBUTION
+  JOINING_FEE
+}
+
+enum ClaimStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  PAID
+}
+
+enum DocumentOwner {
+  MEMBER_ID_PROOF
+  BENEFICIARY_ID_PROOF
+  DEATH_CERTIFICATE
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  VIEW_DOCUMENT
+  LOGIN_FAILURE
+  LOGIN_SUCCESS
+  REVEAL_SENSITIVE_FIELD
+}
+
+// ---------- Auth ----------
+
+model User {
+  id                  String    @id @default(cuid())
+  email               String?   @unique
+  phone               String?   @unique
+  passwordHash        String
+  role                Role      @default(MEMBER)
+  memberId            String?   @unique
+  member              Member?   @relation(fields: [memberId], references: [id])
+  mustChangePassword  Boolean   @default(true)
+  failedLoginCount    Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  activationTokens    ActivationToken[]
+}
+
+model ActivationToken {
+  id          String    @id @default(cuid())
+  token       String    @unique
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  expiresAt   DateTime
+  usedAt      DateTime?
+  createdAt   DateTime  @default(now())
+
+  @@index([userId])
+}
+
+// ---------- Membership ----------
+
+model Member {
+  id                 String          @id @default(cuid())
+  membershipNo       String          @unique
+  firstName          String
+  surname            String
+  gender             Gender
+  type               MembershipType
+  idNumber           String?         @unique
+  phone              String?
+  email              String?
+  dateJoined          DateTime
+  reinstatementDate  DateTime?
+  deceasedDate       DateTime?
+  terminationDate    DateTime?
+  status             MemberStatus    @default(ACTIVE)
+  statusUpdatedAt    DateTime?
+  packageNote        String?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+
+  user               User?
+  beneficiaries      Beneficiary[]
+  payoutNominee      PayoutNominee?
+  payments           Payment[]
+  allocations        PaymentAllocation[]
+  claim              Claim?
+  documents          Document[]
+
+  @@index([status])
+  @@index([surname])
+}
+
+model Beneficiary {
+  id            String            @id @default(cuid())
+  memberId      String
+  member        Member            @relation(fields: [memberId], references: [id])
+  firstName     String
+  surname       String
+  idNumber      String?
+  phone         String?
+  email         String?
+  referenceNo   String            @unique
+  relationship  RelationshipType
+  dateOfBirth   DateTime?
+  isDisabled    Boolean           @default(false)
+  deletedAt     DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+
+  documents     Document[]
+
+  @@index([memberId])
+}
+
+model PayoutNominee {
+  id            String   @id @default(cuid())
+  memberId      String   @unique
+  member        Member   @relation(fields: [memberId], references: [id])
+  firstName     String
+  surname       String
+  phone         String
+  bankName      String
+  accountNumber String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ---------- Contributions ----------
+
+model ContributionRate {
+  id              String         @id @default(cuid())
+  membershipType  MembershipType
+  fund            Fund
+  amount          Decimal        @db.Decimal(10, 2)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  createdByUserId String?
+  createdAt       DateTime       @default(now())
+
+  @@unique([membershipType, fund, effectiveFrom])
+  @@index([membershipType, fund, effectiveFrom])
+}
+
+model Payment {
+  id                String              @id @default(cuid())
+  memberId          String
+  member            Member              @relation(fields: [memberId], references: [id])
+  category          PaymentCategory
+  amount            Decimal             @db.Decimal(10, 2)
+  paymentDate       DateTime
+  method            String?
+  reference         String?
+  recordedByUserId  String?
+  notes             String?
+  createdAt         DateTime            @default(now())
+
+  allocations       PaymentAllocation[]
+
+  @@index([memberId, paymentDate])
+}
+
+model PaymentAllocation {
+  id            String   @id @default(cuid())
+  paymentId     String
+  payment       Payment  @relation(fields: [paymentId], references: [id])
+  memberId      String
+  member        Member   @relation(fields: [memberId], references: [id])
+  fund          Fund
+  year          Int
+  month         Int
+  amount        Decimal  @db.Decimal(10, 2)
+  createdAt     DateTime @default(now())
+
+  @@index([memberId, fund, year, month])
+}
+
+// ---------- Claims ----------
+
+model Claim {
+  id                       String      @id @default(cuid())
+  memberId                 String      @unique
+  member                   Member      @relation(fields: [memberId], references: [id])
+  dateDeceased             DateTime
+  payoutRecipientName      String
+  payoutRecipientSurname   String
+  payoutRecipientIdNumber  String
+  payoutRecipientPhone     String
+  payoutRecipientEmail     String?
+  bankName                 String
+  bankAccountNumber        String
+  status                   ClaimStatus @default(PENDING)
+  submittedByUserId        String
+  submittedAt              DateTime    @default(now())
+  reviewedByUserId         String?
+  reviewedAt               DateTime?
+  reviewNotes              String?
+  createdAt                DateTime    @default(now())
+  updatedAt                DateTime    @updatedAt
+
+  payout                   ClaimPayout?
+  documents                Document[]
+
+  @@index([status])
+}
+
+model ClaimPayout {
+  id            String   @id @default(cuid())
+  claimId       String   @unique
+  claim         Claim    @relation(fields: [claimId], references: [id])
+  amount        Decimal  @db.Decimal(10, 2)
+  paidDate      DateTime
+  paidTo        String
+  paidByUserId  String
+  notes         String?
+  createdAt     DateTime @default(now())
+}
+
+// ---------- Documents & Audit ----------
+
+model Document {
+  id                String        @id @default(cuid())
+  ownerType         DocumentOwner
+  memberId          String?
+  member            Member?       @relation(fields: [memberId], references: [id])
+  beneficiaryId     String?
+  beneficiary       Beneficiary?  @relation(fields: [beneficiaryId], references: [id])
+  claimId           String?
+  claim             Claim?        @relation(fields: [claimId], references: [id])
+  storageKey        String
+  fileName          String
+  mimeType          String
+  sizeBytes         Int
+  uploadedByUserId  String
+  createdAt         DateTime      @default(now())
+
+  @@index([memberId])
+  @@index([beneficiaryId])
+  @@index([claimId])
+}
+
+model AuditLog {
+  id                 String      @id @default(cuid())
+  entityType         String
+  entityId           String
+  memberId           String?
+  action             AuditAction
+  performedByUserId  String
+  metadata           Json?
+  createdAt          DateTime    @default(now())
+
+  @@index([entityType, memberId, action, createdAt])
+}
+
+model AppSetting {
+  key             String   @id
+  value           String
+  description     String?
+  updatedByUserId String?
+  updatedAt       DateTime @updatedAt
+}
