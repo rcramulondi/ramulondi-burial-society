@@ -36,6 +36,19 @@ async function main() {
     });
   }
 
+  console.log("Seeding this year's claim rates...");
+  const claimRates: { type: "BASE_PAYOUT" | "ADDITIONAL_BURIAL_SITE"; amount: number }[] = [
+    { type: "BASE_PAYOUT", amount: 20000 },
+    { type: "ADDITIONAL_BURIAL_SITE", amount: 1500 },
+  ];
+  for (const rate of claimRates) {
+    await prisma.claimRate.upsert({
+      where: { type_effectiveFrom: { type: rate.type, effectiveFrom: jan1 } },
+      create: { ...rate, effectiveFrom: jan1 },
+      update: { amount: rate.amount },
+    });
+  }
+
   const adminEmail = process.env.SEED_ADMIN_EMAIL ?? "admin@ramulondi.local";
   const adminPassword = process.env.SEED_ADMIN_PASSWORD ?? "ChangeMe123!";
   console.log(`Seeding admin user (${adminEmail})...`);

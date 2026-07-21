@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/server/permissions";
+import { requireAdmin, requireOwnMemberOrAdmin } from "@/server/permissions";
 import { paymentCreateSchema } from "@/lib/validation/schemas";
 import { recordPaymentWithAllocation, getOutstandingBalance } from "@/lib/business/contributionAllocation";
 import { logAudit } from "@/lib/audit";
@@ -114,6 +114,53 @@ export async function getMemberContributionSummary(memberId: string) {
       .map(([year, v]) => ({ year, ...v })),
     allocations,
   };
+}
+
+/**
+ * Recent payments across all members, for the Reports tab landing page.
+ */
+export async function listRecentPayments(query?: { search?: string }) {
+  await requireAdmin();
+  return prisma.payment.findMany({
+    where: query?.search
+      ? {
+          member: {
+            OR: [
+              { firstName: { contains: query.search, mode: "insensitive" } },
+              { surname: { contains: query.search, mode: "insensitive" } },
+              { membershipNo: { contains: query.search, mode: "insensitive" } },
+            ],
+          },
+        }
+      : undefined,
+    orderBy: { paymentDate: "desc" },
+    take: 50,
+    include: { member: true },
+  });
+}
+
+/**
+ * Individual Payment transaction list for a member (as opposed to the
+ * aggregated PaymentAllocation sums getMemberContributionSummary returns) —
+ * powers the admin Payment History screen's transaction table.
+ */
+export async function listMemberPayments(memberId: string, options?: { year?: number }) {
+  await requireOwnMemberOrAdmin(memberId);
+  return prisma.payment.findMany({
+    where: {
+      memberId,
+      ...(options?.year
+        ? {
+            paymentDate: {
+              gte: new Date(Date.UTC(options.year, 0, 1)),
+              lt: new Date(Date.UTC(options.year + 1, 0, 1)),
+            },
+          }
+        : {}),
+    },
+    orderBy: { paymentDate: "desc" },
+    include: { allocations: true, documents: true },
+  });
 }
 
 // --- FormData wrappers, for direct use with <ActionForm> ---

@@ -1,4 +1,4 @@
-import { Fund, PaymentCategory } from "@prisma/client";
+import { Fund, PaymentCategory, ContributionRate, PaymentAllocation } from "@prisma/client";
 import { prisma } from "../prisma";
 import { refreshMemberStatus } from "./memberStatus";
 
@@ -162,26 +162,26 @@ function round2(n: number): number {
   return Math.round(n * 100) / 100;
 }
 
+type MemberForOutstanding = { reinstatementDate: Date | null; dateJoined: Date };
+
 /**
- * Total outstanding contribution balance for a member, summed across all
- * fully-elapsed months from their join/reinstatement date through `asOf`
- * (inclusive of the current month). Used to gate claim payouts — the
- * constitution requires all outstanding funds to be settled before a payout
- * is disbursed.
+ * Pure period-walking math, extracted from getOutstandingBalance so it can
+ * also be used by getOutstandingBalancesForMembers without re-fetching rates
+ * and allocations per member (avoids N+1 queries when computing this for an
+ * entire member list). No DB calls in here.
  */
-export async function getOutstandingBalance(memberId: string, asOf: Date = new Date()): Promise<number> {
-  const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId } });
+export function computeOutstanding(
+  member: MemberForOutstanding,
+  rates: ContributionRate[],
+  allocations: PaymentAllocation[],
+  asOf: Date = new Date()
+): number {
   const start: Period = (() => {
     const d = member.reinstatementDate ?? member.dateJoined;
     return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1 };
   })();
   const end: Period = { year: asOf.getUTCFullYear(), month: asOf.getUTCMonth() + 1 };
   if (comparePeriods(start, end) > 0) return 0;
-
-  const [rates, allocations] = await Promise.all([
-    prisma.contributionRate.findMany({ where: { membershipType: member.type } }),
-    prisma.paymentAllocation.findMany({ where: { memberId } }),
-  ]);
 
   const rateFor = (fund: Fund, periodDate: Date) =>
     rates.find(
@@ -205,4 +205,58 @@ export async function getOutstandingBalance(memberId: string, asOf: Date = new D
     }
   }
   return round2(outstanding);
+}
+
+/**
+ * Total outstanding contribution balance for a member, summed across all
+ * fully-elapsed months from their join/reinstatement date through `asOf`
+ * (inclusive of the current month). Used to gate claim payouts — the
+ * constitution requires all outstanding funds to be settled before a payout
+ * is disbursed.
+ */
+export async function getOutstandingBalance(memberId: string, asOf: Date = new Date()): Promise<number> {
+  const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId } });
+  const [rates, allocations] = await Promise.all([
+    prisma.contributionRate.findMany({ where: { membershipType: member.type } }),
+    prisma.paymentAllocation.findMany({ where: { memberId } }),
+  ]);
+  return computeOutstanding(member, rates, allocations, asOf);
+}
+
+/**
+ * Batched outstanding-balance + contributions-to-date for a whole list of
+ * members in 3 queries total, regardless of list size (member list screen
+ * needs this per-row without N+1ing). Contributions-to-date reuses the same
+ * in-memory allocation grouping as the outstanding-balance computation.
+ */
+export async function getOutstandingBalancesForMembers(
+  memberIds: string[],
+  asOf: Date = new Date()
+): Promise<Map<string, { outstandingBalance: number; contributionsToDate: number }>> {
+  const result = new Map<string, { outstandingBalance: number; contributionsToDate: number }>();
+  if (memberIds.length === 0) return result;
+
+  const [members, rates, allocations] = await Promise.all([
+    prisma.member.findMany({ where: { id: { in: memberIds } } }),
+    prisma.contributionRate.findMany(),
+    prisma.paymentAllocation.findMany({ where: { memberId: { in: memberIds } } }),
+  ]);
+
+  const allocationsByMember = new Map<string, PaymentAllocation[]>();
+  for (const a of allocations) {
+    const list = allocationsByMember.get(a.memberId) ?? [];
+    list.push(a);
+    allocationsByMember.set(a.memberId, list);
+  }
+
+  for (const member of members) {
+    const memberAllocations = allocationsByMember.get(member.id) ?? [];
+    const memberRates = rates.filter((r) => r.membershipType === member.type);
+    result.set(member.id, {
+      outstandingBalance: computeOutstanding(member, memberRates, memberAllocations, asOf),
+      contributionsToDate: round2(memberAllocations.reduce((sum, a) => sum + Number(a.amount), 0)),
+    });
+  }
+
+  return result;
 }

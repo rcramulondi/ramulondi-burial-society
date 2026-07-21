@@ -56,3 +56,22 @@ export async function assertDeletionAllowed(memberId: string): Promise<void> {
     );
   }
 }
+
+/**
+ * Blocks re-registering someone already recorded as a DECEASED beneficiary.
+ * Matched globally by ID number (not scoped to memberId) — idNumber is
+ * treated as a national natural key elsewhere in this schema (Member.idNumber
+ * is globally unique), and a deceased person shouldn't be re-addable under a
+ * different member's record either. Includes soft-deleted rows: a
+ * soft-deleted DECEASED record still blocks re-registration.
+ */
+export async function assertNotReRegisteringDeceased(idNumber: string): Promise<void> {
+  const deceased = await prisma.beneficiary.findFirst({
+    where: { idNumber, status: "DECEASED" },
+  });
+  if (deceased) {
+    throw new BeneficiaryRuleError(
+      "A beneficiary with this ID number is already recorded as deceased and cannot be re-registered."
+    );
+  }
+}

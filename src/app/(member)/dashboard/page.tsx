@@ -1,7 +1,7 @@
 import { auth } from "@/lib/auth";
 import { getMemberDetail } from "@/server/actions/member";
 import { getMemberContributionSummary } from "@/server/actions/payment";
-import { STATUS_LABELS } from "@/lib/statusLabels";
+import { STATUS_LABELS, CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
 
 export default async function MemberDashboardPage() {
   const session = await auth();
@@ -29,7 +29,10 @@ export default async function MemberDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard label="Outstanding balance" value={`R ${summary.outstandingBalance.toFixed(2)}`} />
         <StatCard label="Beneficiaries" value={String(member.beneficiaries.length)} />
-        <StatCard label="Claim status" value={member.claim ? member.claim.status : "No claim on file"} />
+        <StatCard
+          label="Claim status"
+          value={member.claims.length > 0 ? member.claims.map((c) => CLAIM_STATUS_LABELS[c.status]).join(", ") : "No claim on file"}
+        />
       </div>
 
       <section>

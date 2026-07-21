@@ -64,7 +64,7 @@ export const beneficiaryCreateSchema = z.object({
   memberId: z.string().min(1),
   firstName: z.string().trim().min(1, "First name is required."),
   surname: z.string().trim().min(1, "Surname is required."),
-  idNumber: optionalSaIdSchema,
+  idNumber: saIdSchema,
   phone: optionalSaPhoneSchema,
   email: optionalEmailSchema,
   relationship: relationshipSchema,
@@ -91,9 +91,13 @@ export const paymentCreateSchema = z.object({
   notes: z.string().trim().optional(),
 });
 
+export const burialSiteSchema = z.enum(["KHALAVHA", "OTHER"]);
+
 export const claimCreateSchema = z.object({
   memberId: z.string().min(1),
+  beneficiaryId: z.string().optional(),
   dateDeceased: z.coerce.date(),
+  placeOfBurial: burialSiteSchema,
   payoutRecipientName: z.string().trim().min(1, "Recipient first name is required."),
   payoutRecipientSurname: z.string().trim().min(1, "Recipient surname is required."),
   payoutRecipientIdNumber: saIdSchema,
@@ -105,7 +109,6 @@ export const claimCreateSchema = z.object({
 
 export const claimPayoutSchema = z.object({
   claimId: z.string().min(1),
-  amount: z.coerce.number().positive(),
   paidDate: z.coerce.date(),
   paidTo: z.string().trim().min(1),
   notes: z.string().trim().optional(),

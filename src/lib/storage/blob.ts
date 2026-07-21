@@ -1,5 +1,5 @@
 import "server-only";
-import { put, del } from "@vercel/blob";
+import { put, del, get } from "@vercel/blob";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
@@ -16,13 +16,12 @@ export function assertUploadIsValid(file: { type: string; size: number }): void 
 }
 
 /**
- * Uploads a file to Vercel Blob storage. Vercel Blob does not offer native
- * private ACLs, so "private" access here is enforced at the application
- * layer instead: the returned blob pathname is stored as `storageKey` and is
- * NEVER exposed to clients directly. All reads go through the authenticated
- * proxy route (/api/documents/[id]) which fetches the blob server-side (using
- * the server-only BLOB_READ_WRITE_TOKEN) and streams it back only after an
- * ownership/role check — see src/app/api/documents/[id]/route.ts.
+ * Uploads a file to Vercel Blob storage using the store's native private
+ * access mode — the blob is not reachable via its URL without the
+ * server-only BLOB_READ_WRITE_TOKEN. All reads go through the authenticated
+ * proxy route (/api/documents/[id]) which fetches the blob server-side and
+ * streams it back only after an ownership/role check — see
+ * src/app/api/documents/[id]/route.ts.
  */
 export async function uploadPrivateFile(
   file: File,
@@ -32,7 +31,7 @@ export async function uploadPrivateFile(
 
   const pathname = `${keyPrefix}/${crypto.randomUUID()}-${file.name}`;
   const blob = await put(pathname, file, {
-    access: "public",
+    access: "private",
     addRandomSuffix: false,
     contentType: file.type,
   });
@@ -45,8 +44,10 @@ export async function uploadPrivateFile(
   };
 }
 
-export async function fetchPrivateFile(storageKey: string): Promise<Response> {
-  return fetch(storageKey, { cache: "no-store" });
+export async function fetchPrivateFile(storageKey: string): Promise<{ ok: boolean; body: ReadableStream<Uint8Array> | null }> {
+  const result = await get(storageKey, { access: "private" });
+  if (!result || !result.stream) return { ok: false, body: null };
+  return { ok: true, body: result.stream };
 }
 
 export async function deletePrivateFile(storageKey: string): Promise<void> {

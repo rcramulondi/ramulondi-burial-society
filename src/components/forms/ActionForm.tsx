@@ -28,17 +28,17 @@ export default function ActionForm({
     <form action={formAction} className={className ?? "flex flex-col gap-4"}>
       {children}
       {!state.ok && (
-        <p className="text-sm text-red-700 dark:text-red-400 border border-red-300 dark:border-red-800 rounded p-2">
+        <p className="text-sm text-red-700 border border-red-300 bg-red-50 rounded p-2">
           {state.error}
         </p>
       )}
       {state.ok && state.data !== null && (
-        <p className="text-sm text-green-700 dark:text-green-400">{onSuccessMessage}</p>
+        <p className="text-sm text-green-700">{onSuccessMessage}</p>
       )}
       <button
         type="submit"
         disabled={isPending}
-        className="bg-black text-white dark:bg-white dark:text-black rounded px-3 py-2 text-sm font-medium disabled:opacity-50 w-fit"
+        className="bg-accent text-white rounded px-3 py-2 text-sm font-medium disabled:opacity-50 w-fit hover:brightness-95 transition"
       >
         {isPending ? "Saving..." : submitLabel}
       </button>

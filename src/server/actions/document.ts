@@ -15,6 +15,7 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult<{
     const memberId = String(formData.get("memberId") ?? "");
     const beneficiaryId = formData.get("beneficiaryId") ? String(formData.get("beneficiaryId")) : null;
     const claimId = formData.get("claimId") ? String(formData.get("claimId")) : null;
+    const paymentId = formData.get("paymentId") ? String(formData.get("paymentId")) : null;
     const ownerType = String(formData.get("ownerType") ?? "") as DocumentOwner;
 
     if (!(file instanceof File)) return { ok: false, error: "No file provided." };
@@ -30,6 +31,7 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult<{
         memberId,
         beneficiaryId,
         claimId,
+        paymentId,
         storageKey: uploaded.storageKey,
         fileName: uploaded.fileName,
         mimeType: uploaded.mimeType,
@@ -48,6 +50,7 @@ export async function uploadDocument(formData: FormData): Promise<ActionResult<{
     });
 
     revalidatePath(`/admin/members/${memberId}`);
+    if (paymentId) revalidatePath(`/admin/members/${memberId}/payments`);
     revalidatePath("/profile");
     return { ok: true, data: { id: doc.id } };
   } catch (e) {

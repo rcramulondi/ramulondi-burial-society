@@ -5,6 +5,7 @@ import { requireAdmin, requireOwnMemberOrAdmin } from "@/server/permissions";
 import { memberCreateSchema, memberUpdateSchema } from "@/lib/validation/schemas";
 import { generateMembershipNumber } from "@/lib/business/membershipNumber";
 import { refreshMemberStatus } from "@/lib/business/memberStatus";
+import { getOutstandingBalancesForMembers } from "@/lib/business/contributionAllocation";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { formDataToObject } from "@/lib/formData";
@@ -57,6 +58,12 @@ export async function createMember(input: unknown): Promise<ActionResult<{ id: s
 export async function updateMember(memberId: string, input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const session = await requireOwnMemberOrAdmin(memberId);
+
+    const existing = await prisma.member.findUniqueOrThrow({ where: { id: memberId } });
+    if (existing.status === "DECEASED") {
+      return { ok: false, error: "This member is recorded as deceased and their record can no longer be edited." };
+    }
+
     const parsed = memberUpdateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
@@ -112,25 +119,73 @@ export async function updateMember(memberId: string, input: unknown): Promise<Ac
   }
 }
 
-export async function listMembers(query?: { search?: string; status?: string }) {
+const MEMBERS_PAGE_SIZE = 20;
+
+function membersWhere(query?: { search?: string; status?: string }) {
+  return {
+    AND: [
+      query?.search
+        ? {
+            OR: [
+              { firstName: { contains: query.search, mode: "insensitive" as const } },
+              { surname: { contains: query.search, mode: "insensitive" as const } },
+              { membershipNo: { contains: query.search, mode: "insensitive" as const } },
+            ],
+          }
+        : {},
+      query?.status ? { status: query.status as never } : {},
+    ],
+  };
+}
+
+export async function listMembers(query?: { search?: string; status?: string; page?: number }) {
   await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
   return prisma.member.findMany({
-    where: {
-      AND: [
-        query?.search
-          ? {
-              OR: [
-                { firstName: { contains: query.search, mode: "insensitive" } },
-                { surname: { contains: query.search, mode: "insensitive" } },
-                { membershipNo: { contains: query.search, mode: "insensitive" } },
-              ],
-            }
-          : {},
-        query?.status ? { status: query.status as never } : {},
-      ],
-    },
+    where: membersWhere(query),
     orderBy: { surname: "asc" },
+    skip: (page - 1) * MEMBERS_PAGE_SIZE,
+    take: MEMBERS_PAGE_SIZE,
   });
+}
+
+export async function countMembers(query?: { search?: string; status?: string }) {
+  await requireAdmin();
+  return prisma.member.count({ where: membersWhere(query) });
+}
+
+/**
+ * Members list enriched with beneficiary count, contributions-to-date, and
+ * outstanding balance — batched to a fixed number of DB round trips
+ * regardless of list size (see getOutstandingBalancesForMembers). Paginated
+ * at MEMBERS_PAGE_SIZE per page.
+ */
+export async function listMembersWithSummary(query?: { search?: string; status?: string; page?: number }) {
+  const [members, total] = await Promise.all([listMembers(query), countMembers(query)]);
+  const memberIds = members.map((m) => m.id);
+
+  const [balances, beneficiaryCounts] = await Promise.all([
+    getOutstandingBalancesForMembers(memberIds),
+    prisma.beneficiary.groupBy({
+      by: ["memberId"],
+      where: { memberId: { in: memberIds }, deletedAt: null, status: { in: ["ACTIVE", "INACTIVE"] } },
+      _count: true,
+    }),
+  ]);
+
+  const beneficiaryCountByMember = new Map(beneficiaryCounts.map((b) => [b.memberId, b._count]));
+
+  return {
+    members: members.map((m) => ({
+      ...m,
+      beneficiaryCount: beneficiaryCountByMember.get(m.id) ?? 0,
+      contributionsToDate: balances.get(m.id)?.contributionsToDate ?? 0,
+      outstandingBalance: balances.get(m.id)?.outstandingBalance ?? 0,
+    })),
+    total,
+    page: Math.max(1, query?.page ?? 1),
+    pageSize: MEMBERS_PAGE_SIZE,
+  };
 }
 
 export async function getMemberDetail(memberId: string) {
@@ -140,7 +195,7 @@ export async function getMemberDetail(memberId: string) {
     include: {
       beneficiaries: { where: { deletedAt: null } },
       payoutNominee: true,
-      claim: { include: { payout: true } },
+      claims: { include: { payout: true, beneficiary: true } },
       documents: true,
     },
   });

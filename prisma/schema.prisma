@@ -63,6 +63,37 @@ enum DocumentOwner {
   MEMBER_ID_PROOF
   BENEFICIARY_ID_PROOF
   DEATH_CERTIFICATE
+  PAYMENT_PROOF
+  EXPENSE_PROOF
+}
+
+enum BeneficiaryStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+}
+
+enum CommitteeRole {
+  CHAIRPERSON
+  VICE_CHAIR
+  SECRETARY
+  TREASURER
+  ADDITIONAL_MEMBER
+}
+
+enum BurialSite {
+  KHALAVHA
+  OTHER
+}
+
+enum ClaimRateType {
+  BASE_PAYOUT
+  ADDITIONAL_BURIAL_SITE
+}
+
+enum DepositType {
+  CASH
+  EFT
 }
 
 enum AuditAction {
@@ -135,8 +166,11 @@ model Member {
   payoutNominee      PayoutNominee?
   payments           Payment[]
   allocations        PaymentAllocation[]
-  claim              Claim?
+  claims             Claim[]
   documents          Document[]
+  committeeTerms     CommitteeTerm[]
+  expensesSpent      Expense[]
+  unallocatedFundAllocations UnallocatedFundAllocation[]
 
   @@index([status])
   @@index([surname])
@@ -155,11 +189,13 @@ model Beneficiary {
   relationship  RelationshipType
   dateOfBirth   DateTime?
   isDisabled    Boolean           @default(false)
+  status        BeneficiaryStatus @default(ACTIVE)
   deletedAt     DateTime?
   createdAt     DateTime          @default(now())
   updatedAt     DateTime          @updatedAt
 
   documents     Document[]
+  claims        Claim[]
 
   @@index([memberId])
 }
@@ -175,6 +211,22 @@ model PayoutNominee {
   accountNumber String
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+// ---------- Committee ----------
+
+model CommitteeTerm {
+  id              String        @id @default(cuid())
+  role            CommitteeRole
+  memberId        String
+  member          Member        @relation(fields: [memberId], references: [id])
+  startDate       DateTime
+  endDate         DateTime?
+  createdByUserId String
+  createdAt       DateTime      @default(now())
+
+  @@index([memberId])
+  @@index([role])
 }
 
 // ---------- Contributions ----------
@@ -193,6 +245,19 @@ model ContributionRate {
   @@index([membershipType, fund, effectiveFrom])
 }
 
+model ClaimRate {
+  id              String        @id @default(cuid())
+  type            ClaimRateType
+  amount          Decimal       @db.Decimal(10, 2)
+  effectiveFrom   DateTime
+  effectiveTo     DateTime?
+  createdByUserId String?
+  createdAt       DateTime      @default(now())
+
+  @@unique([type, effectiveFrom])
+  @@index([type, effectiveFrom])
+}
+
 model Payment {
   id                String              @id @default(cuid())
   memberId          String
@@ -207,6 +272,8 @@ model Payment {
   createdAt         DateTime            @default(now())
 
   allocations       PaymentAllocation[]
+  documents         Document[]
+  unallocatedFundAllocations UnallocatedFundAllocation[]
 
   @@index([memberId, paymentDate])
 }
@@ -230,9 +297,12 @@ model PaymentAllocation {
 
 model Claim {
   id                       String      @id @default(cuid())
-  memberId                 String      @unique
+  memberId                 String
   member                   Member      @relation(fields: [memberId], references: [id])
+  beneficiaryId            String?
+  beneficiary              Beneficiary? @relation(fields: [beneficiaryId], references: [id])
   dateDeceased             DateTime
+  placeOfBurial            BurialSite  @default(KHALAVHA)
   payoutRecipientName      String
   payoutRecipientSurname   String
   payoutRecipientIdNumber  String
@@ -253,6 +323,8 @@ model Claim {
   documents                Document[]
 
   @@index([status])
+  @@index([memberId])
+  @@index([beneficiaryId])
 }
 
 model ClaimPayout {
@@ -267,6 +339,59 @@ model ClaimPayout {
   createdAt     DateTime @default(now())
 }
 
+// ---------- Finance: Expenses & Unallocated Funds ----------
+
+model Expense {
+  id               String        @id @default(cuid())
+  description      String
+  amount           Decimal       @db.Decimal(10, 2)
+  expenseDate      DateTime
+  spentByMemberId  String
+  spentByMember    Member        @relation(fields: [spentByMemberId], references: [id])
+  approvedByRole   CommitteeRole
+  approvedByUserId String
+  notes            String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  documents        Document[]
+
+  @@index([expenseDate])
+  @@index([spentByMemberId])
+}
+
+model UnallocatedFund {
+  id               String        @id @default(cuid())
+  depositType      DepositType
+  amount           Decimal       @db.Decimal(10, 2)
+  depositDate      DateTime
+  reference        String?
+  notes            String?
+  recordedByUserId String
+  createdAt        DateTime      @default(now())
+
+  allocations      UnallocatedFundAllocation[]
+
+  @@index([depositDate])
+}
+
+model UnallocatedFundAllocation {
+  id                String          @id @default(cuid())
+  unallocatedFundId String
+  unallocatedFund   UnallocatedFund @relation(fields: [unallocatedFundId], references: [id])
+  memberId          String
+  member            Member          @relation(fields: [memberId], references: [id])
+  amount            Decimal         @db.Decimal(10, 2)
+  paymentId         String?
+  payment           Payment?        @relation(fields: [paymentId], references: [id])
+  allocatedByUserId String
+  notes             String?
+  createdAt         DateTime        @default(now())
+
+  @@index([memberId])
+  @@index([unallocatedFundId])
+}
+
 // ---------- Documents & Audit ----------
 
 model Document {
@@ -278,6 +403,10 @@ model Document {
   beneficiary       Beneficiary?  @relation(fields: [beneficiaryId], references: [id])
   claimId           String?
   claim             Claim?        @relation(fields: [claimId], references: [id])
+  paymentId         String?
+  payment           Payment?      @relation(fields: [paymentId], references: [id])
+  expenseId         String?
+  expense           Expense?      @relation(fields: [expenseId], references: [id])
   storageKey        String
   fileName          String
   mimeType          String
@@ -288,6 +417,8 @@ model Document {
   @@index([memberId])
   @@index([beneficiaryId])
   @@index([claimId])
+  @@index([paymentId])
+  @@index([expenseId])
 }
 
 model AuditLog {

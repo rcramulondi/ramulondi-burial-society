@@ -1,6 +1,7 @@
 import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
+import Image from "next/image";
 
 export default async function LoginPage({
   searchParams,
@@ -28,41 +29,46 @@ export default async function LoginPage({
 
   return (
     <div className="max-w-sm mx-auto mt-12">
-      <h1 className="text-xl font-semibold mb-6">Sign in</h1>
-      {error && (
-        <p className="mb-4 text-sm text-red-700 dark:text-red-400 border border-red-300 dark:border-red-800 rounded p-2">
-          {error}
+      <div className="bg-card border border-slate-200 rounded-xl shadow-sm p-8">
+        <div className="flex flex-col items-center mb-6">
+          <Image src="/logo.png" alt="Ramulondi Burial Society" width={72} height={72} className="rounded-full mb-3" />
+          <h1 className="text-xl font-semibold text-navy">Sign in</h1>
+        </div>
+        {error && (
+          <p className="mb-4 text-sm text-red-700 border border-red-300 bg-red-50 rounded p-2">
+            {error}
+          </p>
+        )}
+        <form action={login} className="flex flex-col gap-4">
+          <label className="flex flex-col gap-1 text-sm">
+            Email or phone
+            <input
+              name="identifier"
+              type="text"
+              required
+              className="border border-slate-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+            />
+          </label>
+          <label className="flex flex-col gap-1 text-sm">
+            Password
+            <input
+              name="password"
+              type="password"
+              required
+              className="border border-slate-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
+            />
+          </label>
+          <button
+            type="submit"
+            className="bg-accent text-white rounded px-3 py-2 text-sm font-medium hover:brightness-95 transition"
+          >
+            Sign in
+          </button>
+        </form>
+        <p className="mt-4 text-sm text-neutral-500">
+          New member? Ask an admin for your activation link.
         </p>
-      )}
-      <form action={login} className="flex flex-col gap-4">
-        <label className="flex flex-col gap-1 text-sm">
-          Email or phone
-          <input
-            name="identifier"
-            type="text"
-            required
-            className="border rounded px-3 py-2 bg-transparent"
-          />
-        </label>
-        <label className="flex flex-col gap-1 text-sm">
-          Password
-          <input
-            name="password"
-            type="password"
-            required
-            className="border rounded px-3 py-2 bg-transparent"
-          />
-        </label>
-        <button
-          type="submit"
-          className="bg-black text-white dark:bg-white dark:text-black rounded px-3 py-2 text-sm font-medium"
-        >
-          Sign in
-        </button>
-      </form>
-      <p className="mt-4 text-sm text-neutral-500">
-        New member? Ask an admin for your activation link.
-      </p>
+      </div>
     </div>
   );
 }

@@ -9,11 +9,15 @@ export default async function ClaimsPage() {
   const session = await auth();
   const memberId = session!.user.memberId!;
 
-  const [ownClaim, submittedByMe] = await Promise.all([
-    prisma.claim.findUnique({ where: { memberId }, include: { payout: true, documents: true } }),
+  const [ownClaims, submittedByMe] = await Promise.all([
+    prisma.claim.findMany({
+      where: { memberId },
+      include: { beneficiary: true, payout: true, documents: true },
+      orderBy: { submittedAt: "desc" },
+    }),
     prisma.claim.findMany({
       where: { submittedByUserId: session!.user.id, memberId: { not: memberId } },
-      include: { member: true, payout: true, documents: true },
+      include: { member: true, beneficiary: true, payout: true, documents: true },
     }),
   ]);
 
@@ -26,10 +30,21 @@ export default async function ClaimsPage() {
         </Link>
       </div>
 
-      {ownClaim && (
+      {ownClaims.length > 0 && (
         <section>
-          <h2 className="font-medium mb-2">Claim on my policy</h2>
-          <ClaimCard claim={ownClaim} memberId={memberId} />
+          <h2 className="font-medium mb-2">Claim(s) on my policy</h2>
+          <div className="flex flex-col gap-3">
+            {ownClaims.map((c) => (
+              <div key={c.id}>
+                {c.beneficiary && (
+                  <p className="text-sm text-neutral-500">
+                    For beneficiary: {c.beneficiary.firstName} {c.beneficiary.surname} ({c.beneficiary.relationship})
+                  </p>
+                )}
+                <ClaimCard claim={c} memberId={memberId} />
+              </div>
+            ))}
+          </div>
         </section>
       )}
 
@@ -47,7 +62,7 @@ export default async function ClaimsPage() {
         </section>
       )}
 
-      {!ownClaim && submittedByMe.length === 0 && (
+      {ownClaims.length === 0 && submittedByMe.length === 0 && (
         <p className="text-neutral-500 text-sm">No claims on file.</p>
       )}
     </div>

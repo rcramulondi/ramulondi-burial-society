@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getClaimOutstandingBalance, reviewClaimForm, recordClaimPayoutForm } from "@/server/actions/claim";
+import { computeClaimPayoutAmount } from "@/lib/business/claimEligibility";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import { CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
@@ -9,27 +10,34 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
   const { id } = await params;
   const claim = await prisma.claim.findUnique({
     where: { id },
-    include: { member: true, payout: true, documents: true },
+    include: { member: true, beneficiary: true, payout: true, documents: true },
   });
   if (!claim) notFound();
 
   const outstanding = await getClaimOutstandingBalance(claim.memberId);
   const deathCert = claim.documents.find((d) => d.ownerType === "DEATH_CERTIFICATE");
+  const computedAmount = await computeClaimPayoutAmount(claim);
 
   return (
     <div className="flex flex-col gap-8 max-w-lg">
       <div>
         <h1 className="text-xl font-semibold">
-          Claim for {claim.member.firstName} {claim.member.surname}
+          Claim for {claim.beneficiary ? `${claim.beneficiary.firstName} ${claim.beneficiary.surname}` : `${claim.member.firstName} ${claim.member.surname}`}
         </h1>
         <p className="text-sm text-neutral-500">
-          {claim.member.membershipNo} &middot; Status: {CLAIM_STATUS_LABELS[claim.status]}
+          {claim.member.membershipNo}
+          {claim.beneficiary && ` · Beneficiary (${claim.beneficiary.relationship}) of ${claim.member.firstName} ${claim.member.surname}`}
+          {" "}&middot; Status: {CLAIM_STATUS_LABELS[claim.status]}
         </p>
       </div>
 
       <dl className="text-sm grid grid-cols-2 gap-y-1">
         <dt className="text-neutral-500">Date deceased</dt>
         <dd>{claim.dateDeceased.toDateString()}</dd>
+        <dt className="text-neutral-500">Place of burial</dt>
+        <dd>{claim.placeOfBurial === "KHALAVHA" ? "Khalavha" : "Community site (other)"}</dd>
+        <dt className="text-neutral-500">Payout amount</dt>
+        <dd className="font-medium">R {computedAmount.toFixed(2)}</dd>
         <dt className="text-neutral-500">Payout recipient</dt>
         <dd>{claim.payoutRecipientName} {claim.payoutRecipientSurname}</dd>
         <dt className="text-neutral-500">Recipient ID</dt>
@@ -56,6 +64,9 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
       {claim.status === "PENDING" && (
         <section>
           <h2 className="font-medium mb-2">Review</h2>
+          <p className="text-xs text-neutral-500 mb-2">
+            Approving will mark {claim.beneficiary ? "the beneficiary" : "the member"} as deceased.
+          </p>
           <div className="flex gap-4">
             <ActionForm action={reviewClaimForm} submitLabel="Approve" className="flex flex-col gap-2">
               <input type="hidden" name="claimId" value={claim.id} />
@@ -77,9 +88,11 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
               Payout is blocked while an outstanding balance remains — settle it first.
             </p>
           )}
+          <p className="text-sm mb-2">
+            Payout amount (predetermined): <span className="font-medium">R {computedAmount.toFixed(2)}</span>
+          </p>
           <ActionForm action={recordClaimPayoutForm} submitLabel="Record payout">
             <input type="hidden" name="claimId" value={claim.id} />
-            <Field label="Amount paid (R)" name="amount" type="number" required />
             <Field label="Paid date" name="paidDate" type="date" required />
             <Field label="Paid to" name="paidTo" defaultValue={`${claim.payoutRecipientName} ${claim.payoutRecipientSurname}`} required />
             <Field label="Notes (optional)" name="notes" />

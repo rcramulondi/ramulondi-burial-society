@@ -1,16 +1,22 @@
+import { Fragment } from "react";
 import { auth } from "@/lib/auth";
 import { getMemberDetail, updateMemberForm } from "@/server/actions/member";
 import { uploadDocument } from "@/server/actions/document";
 import { upsertPayoutNomineeForm } from "@/server/actions/payoutNominee";
+import { listCurrentCommitteeHolders } from "@/server/actions/committee";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
-import { STATUS_LABELS } from "@/lib/statusLabels";
+import { STATUS_LABELS, COMMITTEE_ROLE_LABELS, COMMITTEE_ROLE_ORDER } from "@/lib/statusLabels";
 
 export default async function ProfilePage() {
   const session = await auth();
   const memberId = session!.user.memberId!;
-  const member = await getMemberDetail(memberId);
+  const [member, committeeHolders] = await Promise.all([
+    getMemberDetail(memberId),
+    listCurrentCommitteeHolders(),
+  ]);
   if (!member) return <p>Member record not found.</p>;
+  const holderByRole = new Map(committeeHolders.map((h) => [h.role, h]));
 
   return (
     <div className="flex flex-col gap-8 max-w-lg">
@@ -74,6 +80,24 @@ export default async function ProfilePage() {
           <Field label="Bank name" name="bankName" defaultValue={member.payoutNominee?.bankName ?? ""} required />
           <Field label="Account number" name="accountNumber" defaultValue={member.payoutNominee?.accountNumber ?? ""} required />
         </ActionForm>
+      </section>
+
+      <section>
+        <h2 className="font-medium mb-2">Society committee</h2>
+        <p className="text-xs text-neutral-500 mb-3">Current office holders (view only).</p>
+        <dl className="text-sm grid grid-cols-2 gap-y-1">
+          {COMMITTEE_ROLE_ORDER.map((role) => {
+            const holder = holderByRole.get(role);
+            return (
+              <Fragment key={role}>
+                <dt className="text-neutral-500">{COMMITTEE_ROLE_LABELS[role]}</dt>
+                <dd>
+                  {holder ? `${holder.member.firstName} ${holder.member.surname}` : "Vacant"}
+                </dd>
+              </Fragment>
+            );
+          })}
+        </dl>
       </section>
     </div>
   );

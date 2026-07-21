@@ -66,7 +66,7 @@ export default async function BeneficiariesPage() {
               ))}
             </select>
           </label>
-          <Field label="ID number (optional)" name="idNumber" />
+          <Field label="ID number" name="idNumber" required />
           <Field label="Phone (optional)" name="phone" />
           <Field label="Email (optional)" name="email" type="email" />
           <Field label="Date of birth (optional)" name="dateOfBirth" type="date" />

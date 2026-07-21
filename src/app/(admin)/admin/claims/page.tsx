@@ -12,6 +12,7 @@ export default async function AdminClaimsPage() {
         <thead>
           <tr className="text-left border-b">
             <th className="py-1">Member</th>
+            <th className="py-1">Deceased</th>
             <th className="py-1">Date deceased</th>
             <th className="py-1">Status</th>
             <th className="py-1">Submitted</th>
@@ -25,13 +26,16 @@ export default async function AdminClaimsPage() {
                   {c.member.firstName} {c.member.surname}
                 </Link>
               </td>
+              <td className="py-1">
+                {c.beneficiary ? `${c.beneficiary.firstName} ${c.beneficiary.surname} (${c.beneficiary.relationship})` : "Member (policyholder)"}
+              </td>
               <td className="py-1">{c.dateDeceased.toDateString()}</td>
               <td className="py-1">{CLAIM_STATUS_LABELS[c.status]}</td>
               <td className="py-1">{c.submittedAt.toDateString()}</td>
             </tr>
           ))}
           {claims.length === 0 && (
-            <tr><td colSpan={4} className="py-2 text-neutral-500">No claims submitted.</td></tr>
+            <tr><td colSpan={5} className="py-2 text-neutral-500">No claims submitted.</td></tr>
           )}
         </tbody>
       </table>

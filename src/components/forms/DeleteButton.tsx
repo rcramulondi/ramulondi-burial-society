@@ -33,11 +33,11 @@ export default function DeleteButton({
       <button
         type="submit"
         disabled={isPending}
-        className="text-red-700 dark:text-red-400 text-xs hover:underline disabled:opacity-50"
+        className="text-red-700 text-xs hover:underline disabled:opacity-50"
       >
         {isPending ? "Removing..." : label}
       </button>
-      {!state.ok && <p className="text-xs text-red-700 dark:text-red-400 mt-1">{state.error}</p>}
+      {!state.ok && <p className="text-xs text-red-700 mt-1">{state.error}</p>}
     </form>
   );
 }
