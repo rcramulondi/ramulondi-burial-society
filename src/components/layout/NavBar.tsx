@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { auth, signOut } from "@/lib/auth";
+import HamburgerMenu from "./HamburgerMenu";
 
 const MEMBER_LINKS = [
   { href: "/dashboard", label: "Dashboard" },
@@ -36,23 +37,18 @@ export default async function NavBar() {
           <Image src="/logo.png" alt="Ramulondi Burial Society" width={32} height={32} className="rounded-full" />
           <span className="hidden sm:inline">Ramulondi Burial Society</span>
         </Link>
-        <nav className="flex flex-wrap gap-4 text-sm">
-          {links.map((l) => (
-            <Link key={l.href} href={l.href} className="text-white/80 hover:text-accent transition-colors">
-              {l.label}
-            </Link>
-          ))}
-        </nav>
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-        >
-          <button type="submit" className="text-sm text-white/80 hover:text-accent transition-colors">
-            Sign out
-          </button>
-        </form>
+        <HamburgerMenu links={links}>
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+          >
+            <button type="submit" className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-background transition-colors">
+              Sign out
+            </button>
+          </form>
+        </HamburgerMenu>
       </div>
     </header>
   );
