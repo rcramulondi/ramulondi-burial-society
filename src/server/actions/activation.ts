@@ -8,8 +8,36 @@ import crypto from "crypto";
 import { z } from "zod";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import type { ActionResult } from "./member";
+import type { Member } from "@prisma/client";
 
 const ACTIVATION_TOKEN_TTL_DAYS = 7;
+
+/**
+ * Seeds a new User's login identifier from its Member record so the account
+ * is never left with neither an email nor a phone — a member who leaves both
+ * fields blank on the activation form would otherwise end up permanently
+ * unable to log in. Member.phone is required, so it's the reliable fallback;
+ * either field is skipped if another User already owns that exact value
+ * (rare, but seen in practice with pre-existing/orphaned accounts) rather
+ * than letting a unique-constraint error fail the whole invite.
+ */
+async function createUserSeededFromMember(member: Member) {
+  const [emailTaken, phoneTaken] = await Promise.all([
+    member.email ? prisma.user.findUnique({ where: { email: member.email } }) : null,
+    member.phone ? prisma.user.findUnique({ where: { phone: member.phone } }) : null,
+  ]);
+
+  return prisma.user.create({
+    data: {
+      memberId: member.id,
+      phone: phoneTaken ? undefined : member.phone,
+      email: emailTaken || !member.email ? undefined : member.email,
+      // Unusable placeholder — replaced when the member activates their account.
+      passwordHash: await bcrypt.hash(crypto.randomUUID(), 12),
+      mustChangePassword: true,
+    },
+  });
+}
 
 /**
  * Admin-issued invite: creates (or reuses) a User for a member and a
@@ -22,16 +50,7 @@ export async function inviteMember(memberId: string): Promise<ActionResult<{ tok
     const session = await requireAdmin();
     const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId }, include: { user: true } });
 
-    const user = member.user
-      ? member.user
-      : await prisma.user.create({
-          data: {
-            memberId,
-            // Unusable placeholder — replaced when the member activates their account.
-            passwordHash: await bcrypt.hash(crypto.randomUUID(), 12),
-            mustChangePassword: true,
-          },
-        });
+    const user = member.user ?? (await createUserSeededFromMember(member));
 
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + ACTIVATION_TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);

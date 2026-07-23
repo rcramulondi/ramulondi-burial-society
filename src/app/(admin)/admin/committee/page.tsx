@@ -19,7 +19,7 @@ export default async function AdminCommitteePage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-xl font-semibold text-navy">Committee</h1>
+      <h1 className="text-xl font-semibold text-navy">Committee Members</h1>
 
       <Card>
         <h2 className="font-medium mb-4 text-navy">Current holders</h2>
