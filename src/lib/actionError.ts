@@ -3,6 +3,7 @@ import { UnauthorizedError, ForbiddenError } from "@/server/permissions";
 import { BeneficiaryRuleError } from "./business/beneficiaryRules";
 import { ClaimPayoutBlockedError } from "./business/claimEligibility";
 import { UploadValidationError } from "./storage/blob";
+import { MemberRuleError } from "./business/memberRules";
 
 /** Error classes whose .message is written for end users and safe to show verbatim. */
 const SAFE_ERROR_CLASSES = [
@@ -11,6 +12,7 @@ const SAFE_ERROR_CLASSES = [
   BeneficiaryRuleError,
   ClaimPayoutBlockedError,
   UploadValidationError,
+  MemberRuleError,
 ];
 
 /**

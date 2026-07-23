@@ -22,16 +22,22 @@ export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
 
 export const COMMITTEE_ROLE_LABELS: Record<CommitteeRole, string> = {
   CHAIRPERSON: "Chairperson",
-  VICE_CHAIR: "Vice-Chair",
+  VICE_CHAIR: "Vice Chairperson",
   SECRETARY: "Secretary",
+  VICE_SECRETARY: "Vice Secretary",
   TREASURER: "Treasurer",
-  ADDITIONAL_MEMBER: "Additional Member",
+  ADDITIONAL_MEMBER: "Additional Member 1",
+  ADDITIONAL_MEMBER_2: "Additional Member 2",
+  YOUTH_COORDINATOR: "Youth Coordinator",
 };
 
 export const COMMITTEE_ROLE_ORDER: CommitteeRole[] = [
   "CHAIRPERSON",
   "VICE_CHAIR",
   "SECRETARY",
+  "VICE_SECRETARY",
   "TREASURER",
   "ADDITIONAL_MEMBER",
+  "ADDITIONAL_MEMBER_2",
+  "YOUTH_COORDINATOR",
 ];

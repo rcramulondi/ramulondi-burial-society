@@ -2,26 +2,43 @@ import Link from "next/link";
 import Image from "next/image";
 import { auth, signOut } from "@/lib/auth";
 import HamburgerMenu from "./HamburgerMenu";
+import {
+  LayoutDashboard,
+  Users,
+  Banknote,
+  Percent,
+  FileCheck2,
+  UsersRound,
+  Receipt,
+  Coins,
+  FileBarChart,
+  Settings,
+  ScrollText,
+  User,
+} from "lucide-react";
+
+const iconClass = "w-4 h-4";
 
 const MEMBER_LINKS = [
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/beneficiaries", label: "Beneficiaries" },
-  { href: "/contributions", label: "Contributions" },
-  { href: "/claims", label: "Claims" },
-  { href: "/profile", label: "Profile" },
+  { href: "/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/beneficiaries", label: "Beneficiaries", icon: <Users className={iconClass} /> },
+  { href: "/contributions", label: "Contributions", icon: <Banknote className={iconClass} /> },
+  { href: "/claims", label: "Claims", icon: <FileCheck2 className={iconClass} /> },
+  { href: "/committee", label: "Committee", icon: <UsersRound className={iconClass} /> },
+  { href: "/profile", label: "Profile", icon: <User className={iconClass} /> },
 ];
 
 const ADMIN_LINKS = [
-  { href: "/admin/dashboard", label: "Dashboard" },
-  { href: "/admin/members", label: "Members" },
-  { href: "/admin/rates", label: "Rates" },
-  { href: "/admin/claims", label: "Claims" },
-  { href: "/admin/committee", label: "Committee" },
-  { href: "/admin/expenses", label: "Expenses" },
-  { href: "/admin/unallocated-funds", label: "Unallocated Funds" },
-  { href: "/admin/reports", label: "Reports" },
-  { href: "/admin/settings", label: "Settings" },
-  { href: "/admin/audit-log", label: "Audit Log" },
+  { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
+  { href: "/admin/members", label: "Members", icon: <Users className={iconClass} /> },
+  { href: "/admin/rates", label: "Rates", icon: <Percent className={iconClass} /> },
+  { href: "/admin/claims", label: "Claims", icon: <FileCheck2 className={iconClass} /> },
+  { href: "/admin/committee", label: "Committee", icon: <UsersRound className={iconClass} /> },
+  { href: "/admin/expenses", label: "Expenses", icon: <Receipt className={iconClass} /> },
+  { href: "/admin/unallocated-funds", label: "Unallocated Funds", icon: <Coins className={iconClass} /> },
+  { href: "/admin/reports", label: "Reports", icon: <FileBarChart className={iconClass} /> },
+  { href: "/admin/settings", label: "Settings", icon: <Settings className={iconClass} /> },
+  { href: "/admin/audit-log", label: "Audit Log", icon: <ScrollText className={iconClass} /> },
 ];
 
 export default async function NavBar() {

@@ -8,7 +8,7 @@ export default function HamburgerMenu({
   links,
   children,
 }: {
-  links: { href: string; label: string }[];
+  links: { href: string; label: string; icon?: React.ReactNode }[];
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -43,8 +43,9 @@ export default function HamburgerMenu({
               <Link
                 key={l.href}
                 href={l.href}
-                className="px-4 py-2 text-sm text-navy hover:bg-background transition-colors"
+                className="flex items-center gap-2 px-4 py-2 text-sm text-navy hover:bg-background transition-colors"
               >
+                {l.icon}
                 {l.label}
               </Link>
             ))}

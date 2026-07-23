@@ -1,17 +1,22 @@
 import { prisma } from "@/lib/prisma";
 import { STATUS_LABELS } from "@/lib/statusLabels";
+import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 import { projectedForYear, getActiveCountsAndRates } from "@/lib/business/projectedContributions";
+import { listUnallocatedFunds } from "@/server/actions/unallocatedFund";
 import MemberStatusPieChart from "@/components/charts/MemberStatusPieChart";
 import Card from "@/components/ui/Card";
 import Link from "next/link";
 import type { MemberStatus } from "@prisma/client";
 
 export default async function AdminDashboardPage() {
-  const [statusCounts, pendingClaims, fundTotals, { activeCounts, rates }] = await Promise.all([
+  const [statusCounts, pendingClaims, fundTotals, { activeCounts, rates }, expenses, claimPayouts, unallocatedFunds] = await Promise.all([
     prisma.member.groupBy({ by: ["status"], _count: true }),
     prisma.claim.count({ where: { status: "PENDING" } }),
     prisma.paymentAllocation.groupBy({ by: ["year", "fund"], _sum: { amount: true } }),
     getActiveCountsAndRates(),
+    prisma.expense.findMany({ select: { amount: true, expenseDate: true } }),
+    prisma.claimPayout.findMany({ select: { amount: true, paidDate: true } }),
+    listUnallocatedFunds(),
   ]);
 
   const statusMap = Object.fromEntries(statusCounts.map((s) => [s.status, s._count])) as Record<MemberStatus, number>;
@@ -29,6 +34,14 @@ export default async function AdminDashboardPage() {
 
   const years = Array.from(new Set(fundTotals.map((f) => f.year))).sort((a, b) => b - a);
 
+  const totalCollectedAllYears = fundTotals.reduce((sum, f) => sum + Number(f._sum.amount ?? 0), 0);
+  const unallocatedTotal = unallocatedFunds.reduce((sum, f) => sum + f.remaining, 0);
+
+  const expensesByYear = (year: number) =>
+    expenses.filter((e) => e.expenseDate.getUTCFullYear() === year).reduce((s, e) => s + Number(e.amount), 0);
+  const claimPayoutsByYear = (year: number) =>
+    claimPayouts.filter((p) => p.paidDate.getUTCFullYear() === year).reduce((s, p) => s + Number(p.amount), 0);
+
   return (
     <div className="flex flex-col gap-8">
       <h1 className="text-xl font-semibold text-navy">Admin dashboard</h1>
@@ -37,7 +50,7 @@ export default async function AdminDashboardPage() {
         {(Object.keys(STATUS_LABELS) as MemberStatus[]).map((status) => (
           <Link key={status} href={`/admin/members?status=${status}`} className="block">
             <Card className="hover:border-accent transition-colors">
-              <p className="text-xs text-neutral-500">{STATUS_LABELS[status]}</p>
+              <MemberStatusBadge status={status} />
               <p className="text-lg font-semibold mt-1 text-navy">{statusMap[status] ?? 0}</p>
             </Card>
           </Link>
@@ -46,6 +59,16 @@ export default async function AdminDashboardPage() {
           <Card className="hover:border-accent transition-colors">
             <p className="text-xs text-neutral-500">Pending claims</p>
             <p className="text-lg font-semibold mt-1 text-navy">{pendingClaims}</p>
+          </Card>
+        </Link>
+        <Card>
+          <p className="text-xs text-neutral-500">Total collected (all years)</p>
+          <p className="text-lg font-semibold mt-1 text-navy">R {totalCollectedAllYears.toFixed(2)}</p>
+        </Card>
+        <Link href="/admin/unallocated-funds" className="block">
+          <Card className="hover:border-accent transition-colors">
+            <p className="text-xs text-neutral-500">Unallocated funds</p>
+            <p className="text-lg font-semibold mt-1 text-navy">R {unallocatedTotal.toFixed(2)}</p>
           </Card>
         </Link>
       </div>
@@ -73,6 +96,8 @@ export default async function AdminDashboardPage() {
                 <th className="py-1 pr-3 text-right">Actual total</th>
                 <th className="py-1 pr-3 text-right">Projected total</th>
                 <th className="py-1 pr-3 text-right">Shortfall</th>
+                <th className="py-1 pr-3 text-right">Burial expenditure</th>
+                <th className="py-1 pr-3 text-right">Other expenses</th>
               </tr>
             </thead>
             <tbody>
@@ -94,6 +119,16 @@ export default async function AdminDashboardPage() {
                     <td className={`py-1 pr-3 text-right ${shortfall > 0 ? "text-red-700" : "text-green-700"}`}>
                       <Link href={`/admin/dashboard/year/${year}`} className="hover:underline">
                         R {shortfall.toFixed(2)}
+                      </Link>
+                    </td>
+                    <td className="py-1 pr-3 text-right">
+                      <Link href={`/admin/claims?year=${year}`} className="text-accent hover:underline">
+                        R {claimPayoutsByYear(year).toFixed(2)}
+                      </Link>
+                    </td>
+                    <td className="py-1 pr-3 text-right">
+                      <Link href="/admin/expenses" className="text-accent hover:underline">
+                        R {expensesByYear(year).toFixed(2)}
                       </Link>
                     </td>
                   </tr>

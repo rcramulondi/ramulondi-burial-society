@@ -7,15 +7,15 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import { z } from "zod";
+import { CommitteeRole } from "@prisma/client";
 import type { ActionResult } from "./member";
-import type { CommitteeRole } from "@prisma/client";
 
 const expenseCreateSchema = z.object({
   description: z.string().trim().min(1, "Description is required."),
   amount: z.coerce.number().positive("Amount must be greater than zero."),
   expenseDate: z.coerce.date(),
   spentByMemberId: z.string().min(1, "Select who spent the money."),
-  approvedByRole: z.enum(["CHAIRPERSON", "VICE_CHAIR", "SECRETARY", "TREASURER", "ADDITIONAL_MEMBER"]),
+  approvedByRole: z.nativeEnum(CommitteeRole),
   notes: z.string().trim().optional(),
 });
 

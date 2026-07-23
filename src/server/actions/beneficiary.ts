@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireOwnMemberOrAdmin } from "@/server/permissions";
-import { beneficiaryCreateSchema } from "@/lib/validation/schemas";
+import { beneficiaryCreateSchema, beneficiaryUpdateSchema } from "@/lib/validation/schemas";
 import { generateBeneficiaryReference } from "@/lib/business/membershipNumber";
 import {
   assertSingleParentSlotAvailable,
@@ -62,6 +62,64 @@ export async function createBeneficiary(input: unknown): Promise<ActionResult<{ 
     return { ok: true, data: { id: beneficiary.id } };
   } catch (e) {
     return { ok: false, error: toSafeErrorMessage(e, "Failed to add beneficiary.") };
+  }
+}
+
+/**
+ * General field edits (name, ID, contact details, relationship, DOB,
+ * disability flag) — distinct from `updateBeneficiaryStatus`, which owns the
+ * ACTIVE/INACTIVE/DECEASED transition exclusively. `referenceNo` and
+ * `status` are never editable here.
+ */
+export async function updateBeneficiary(beneficiaryId: string, input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const parsed = beneficiaryUpdateSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
+    }
+    const data = parsed.data;
+
+    const existing = await prisma.beneficiary.findUniqueOrThrow({ where: { id: beneficiaryId } });
+    const session = await requireOwnMemberOrAdmin(existing.memberId);
+
+    if (existing.status === "DECEASED") {
+      return { ok: false, error: "This beneficiary is recorded as deceased and can no longer be edited." };
+    }
+
+    if (data.relationship === "FATHER" || data.relationship === "MOTHER") {
+      await assertSingleParentSlotAvailable(existing.memberId, data.relationship, beneficiaryId);
+    }
+    if (data.idNumber && data.idNumber !== existing.idNumber) {
+      await assertNotReRegisteringDeceased(data.idNumber);
+    }
+
+    const beneficiary = await prisma.beneficiary.update({
+      where: { id: beneficiaryId },
+      data: {
+        firstName: data.firstName,
+        surname: data.surname,
+        idNumber: data.idNumber,
+        phone: data.phone,
+        email: data.email,
+        relationship: data.relationship,
+        dateOfBirth: data.dateOfBirth,
+        isDisabled: data.isDisabled,
+      },
+    });
+
+    await logAudit({
+      entityType: "Beneficiary",
+      entityId: beneficiary.id,
+      memberId: existing.memberId,
+      action: "UPDATE",
+      performedByUserId: session.user.id,
+    });
+
+    revalidatePath("/beneficiaries");
+    revalidatePath(`/admin/members/${existing.memberId}/beneficiaries`);
+    return { ok: true, data: { id: beneficiary.id } };
+  } catch (e) {
+    return { ok: false, error: toSafeErrorMessage(e, "Failed to update beneficiary.") };
   }
 }
 
@@ -168,6 +226,13 @@ export async function createBeneficiaryForm(formData: FormData) {
 
 export async function deleteBeneficiaryForm(formData: FormData) {
   return deleteBeneficiary(String(formData.get("beneficiaryId") ?? ""));
+}
+
+export async function updateBeneficiaryForm(formData: FormData) {
+  const obj = formDataToObject(formData);
+  const beneficiaryId = String(obj.beneficiaryId ?? "");
+  delete obj.beneficiaryId;
+  return updateBeneficiary(beneficiaryId, obj);
 }
 
 export async function updateBeneficiaryStatusForm(formData: FormData) {

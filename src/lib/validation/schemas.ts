@@ -54,6 +54,7 @@ export const memberCreateSchema = z.object({
   email: optionalEmailSchema,
   dateJoined: z.coerce.date({ message: "A valid join date is required." }),
   packageNote: z.string().trim().optional(),
+  succeedsMemberId: z.string().trim().optional(),
 });
 
 export const memberUpdateSchema = memberCreateSchema.partial().extend({
@@ -71,6 +72,8 @@ export const beneficiaryCreateSchema = z.object({
   dateOfBirth: z.coerce.date().optional(),
   isDisabled: z.boolean().optional().default(false),
 });
+
+export const beneficiaryUpdateSchema = beneficiaryCreateSchema.omit({ memberId: true }).partial();
 
 export const payoutNomineeSchema = z.object({
   memberId: z.string().min(1),

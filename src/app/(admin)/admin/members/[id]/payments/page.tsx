@@ -1,5 +1,7 @@
 import { getMemberContributionSummary, recordPaymentForm, listMemberPayments } from "@/server/actions/payment";
 import { uploadDocument } from "@/server/actions/document";
+import { prisma } from "@/lib/prisma";
+import { computeFullRateForMonth } from "@/lib/business/contributionAllocation";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import Card from "@/components/ui/Card";
@@ -20,20 +22,29 @@ export default async function MemberPaymentHistoryPage({
   const currentYear = new Date().getFullYear();
   const year = yearParam ? Number(yearParam) : currentYear;
 
-  const [summary, payments] = await Promise.all([
+  const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId } });
+  const [summary, payments, rates] = await Promise.all([
     getMemberContributionSummary(memberId),
     listMemberPayments(memberId, { year }),
+    prisma.contributionRate.findMany({ where: { membershipType: member.type } }),
   ]);
 
   const availableYears = Array.from(
     new Set([currentYear, ...summary.allocations.map((a) => a.year)])
   ).sort((a, b) => b - a);
 
-  const monthTotals = Array.from({ length: 12 }, (_, i) => {
+  const now = new Date();
+  const currentMonthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+
+  const monthRows = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
-    return summary.allocations
+    const amount = summary.allocations
       .filter((a) => a.year === year && a.month === month)
       .reduce((sum, a) => sum + Number(a.amount), 0);
+    const fullRate = computeFullRateForMonth(rates, member.type, year, month);
+    const periodDate = new Date(Date.UTC(year, month - 1, 1));
+    const belowRate = periodDate <= currentMonthStart && amount < fullRate;
+    return { amount, belowRate };
   });
 
   return (
@@ -56,12 +67,13 @@ export default async function MemberPaymentHistoryPage({
             </button>
           </form>
         </div>
+        <p className="text-xs text-neutral-500 mb-2">Months shown in red fell short of the full monthly rate.</p>
         <div className="grid grid-cols-4 sm:grid-cols-6 gap-2 text-sm">
-          {monthTotals.map((amount, i) => (
+          {monthRows.map((r, i) => (
             <div key={i} className="border border-slate-200 rounded p-2 text-center">
               <p className="text-xs text-neutral-500">{MONTH_NAMES[i]}</p>
-              <p className={amount > 0 ? "font-medium text-navy" : "text-neutral-400"}>
-                {amount > 0 ? `R${amount.toFixed(0)}` : "—"}
+              <p className={r.belowRate ? "font-bold text-red-700" : r.amount > 0 ? "font-medium text-navy" : "text-neutral-400"}>
+                {r.amount > 0 ? `R${r.amount.toFixed(0)}` : "—"}
               </p>
             </div>
           ))}

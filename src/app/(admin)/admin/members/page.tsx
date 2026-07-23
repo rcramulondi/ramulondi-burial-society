@@ -1,5 +1,7 @@
 import { listMembersWithSummary } from "@/server/actions/member";
 import { STATUS_LABELS } from "@/lib/statusLabels";
+import { MemberStatusBadge } from "@/components/ui/StatusBadge";
+import { outstandingBalanceClass } from "@/lib/statusColors";
 import Link from "next/link";
 
 export default async function AdminMembersPage({
@@ -71,13 +73,13 @@ export default async function AdminMembersPage({
                 </td>
                 <td className="py-1 pr-3">{m.firstName} {m.surname}</td>
                 <td className="py-1 pr-3">{m.type}</td>
-                <td className="py-1 pr-3">{STATUS_LABELS[m.status]}</td>
+                <td className="py-1 pr-3"><MemberStatusBadge status={m.status} /></td>
                 <td className="py-1 pr-3">{m.dateJoined.toDateString()}</td>
                 <td className="py-1 pr-3">{m.phone ?? "—"}</td>
                 <td className="py-1 pr-3">{m.email ?? "—"}</td>
                 <td className="py-1 pr-3 text-right">{m.beneficiaryCount}</td>
                 <td className="py-1 pr-3 text-right">R {m.contributionsToDate.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right">R {m.outstandingBalance.toFixed(2)}</td>
+                <td className={`py-1 pr-3 text-right ${outstandingBalanceClass(m.outstandingBalance)}`}>R {m.outstandingBalance.toFixed(2)}</td>
               </tr>
             ))}
           </tbody>

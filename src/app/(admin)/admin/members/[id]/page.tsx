@@ -4,6 +4,7 @@ import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import InviteButton from "@/components/forms/InviteButton";
 import Card from "@/components/ui/Card";
+import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export default async function AdminMemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -13,6 +14,30 @@ export default async function AdminMemberDetailPage({ params }: { params: Promis
 
   return (
     <div className="flex flex-col gap-8">
+      {(member.succeedsMember || member.succeededByMember) && (
+        <Card className="max-w-lg">
+          <h2 className="font-medium mb-2 text-navy">Succession</h2>
+          <div className="text-sm flex flex-col gap-1">
+            {member.succeedsMember && (
+              <p>
+                Succeeds{" "}
+                <Link href={`/admin/members/${member.succeedsMember.id}`} className="text-accent hover:underline">
+                  {member.succeedsMember.firstName} {member.succeedsMember.surname} ({member.succeedsMember.membershipNo})
+                </Link>
+              </p>
+            )}
+            {member.succeededByMember && (
+              <p>
+                Succeeded by{" "}
+                <Link href={`/admin/members/${member.succeededByMember.id}`} className="text-accent hover:underline">
+                  {member.succeededByMember.firstName} {member.succeededByMember.surname} ({member.succeededByMember.membershipNo})
+                </Link>
+              </p>
+            )}
+          </div>
+        </Card>
+      )}
+
       <Card className="max-w-lg">
         <h2 className="font-medium mb-4 text-navy">Edit member</h2>
         <ActionForm action={updateMemberForm} submitLabel="Save changes">

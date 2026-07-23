@@ -77,8 +77,11 @@ enum CommitteeRole {
   CHAIRPERSON
   VICE_CHAIR
   SECRETARY
+  VICE_SECRETARY
   TREASURER
   ADDITIONAL_MEMBER
+  ADDITIONAL_MEMBER_2
+  YOUTH_COORDINATOR
 }
 
 enum BurialSite {
@@ -171,6 +174,14 @@ model Member {
   committeeTerms     CommitteeTerm[]
   expensesSpent      Expense[]
   unallocatedFundAllocations UnallocatedFundAllocation[]
+
+  // A spouse/partner taking over a deceased member's policy is registered as
+  // an entirely new, independent Member record — this is a pure reference
+  // link between the two records, not a data merge. @unique on the FK side
+  // enforces at most one successor per deceased member at the DB level.
+  succeedsMemberId   String?         @unique
+  succeedsMember     Member?         @relation("MemberSuccession", fields: [succeedsMemberId], references: [id])
+  succeededByMember  Member?        @relation("MemberSuccession")
 
   @@index([status])
   @@index([surname])

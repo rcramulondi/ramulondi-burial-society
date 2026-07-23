@@ -6,6 +6,7 @@ import { memberCreateSchema, memberUpdateSchema } from "@/lib/validation/schemas
 import { generateMembershipNumber } from "@/lib/business/membershipNumber";
 import { refreshMemberStatus } from "@/lib/business/memberStatus";
 import { getOutstandingBalancesForMembers } from "@/lib/business/contributionAllocation";
+import { assertSuccessionTarget } from "@/lib/business/memberRules";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { formDataToObject } from "@/lib/formData";
@@ -22,6 +23,10 @@ export async function createMember(input: unknown): Promise<ActionResult<{ id: s
     }
     const data = parsed.data;
 
+    if (data.succeedsMemberId) {
+      await assertSuccessionTarget(data.succeedsMemberId);
+    }
+
     const membershipNo = await generateMembershipNumber(data.surname);
 
     const member = await prisma.member.create({
@@ -36,6 +41,7 @@ export async function createMember(input: unknown): Promise<ActionResult<{ id: s
         email: data.email,
         dateJoined: data.dateJoined,
         packageNote: data.packageNote,
+        succeedsMemberId: data.succeedsMemberId,
       },
     });
 
@@ -197,6 +203,8 @@ export async function getMemberDetail(memberId: string) {
       payoutNominee: true,
       claims: { include: { payout: true, beneficiary: true } },
       documents: true,
+      succeedsMember: true,
+      succeededByMember: true,
     },
   });
 }

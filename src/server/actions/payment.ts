@@ -21,6 +21,11 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ paym
     }
     const data = parsed.data;
 
+    const member = await prisma.member.findUniqueOrThrow({ where: { id: data.memberId } });
+    if (member.status === "DECEASED") {
+      return { ok: false, error: "This member is recorded as deceased and payments can no longer be recorded against their record." };
+    }
+
     const result = await recordPaymentWithAllocation({
       memberId: data.memberId,
       amount: data.amount,

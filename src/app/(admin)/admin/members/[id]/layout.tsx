@@ -1,6 +1,7 @@
 import { getMemberDetail } from "@/server/actions/member";
 import { getMemberContributionSummary } from "@/server/actions/payment";
-import { STATUS_LABELS } from "@/lib/statusLabels";
+import { MemberStatusBadge } from "@/components/ui/StatusBadge";
+import { outstandingBalanceClass } from "@/lib/statusColors";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -25,8 +26,12 @@ export default async function MemberDetailLayout({
     <div className="flex flex-col gap-6">
       <div>
         <h1 className="text-xl font-semibold text-navy">{member.firstName} {member.surname}</h1>
-        <p className="text-sm text-neutral-500">
-          {member.membershipNo} &middot; {STATUS_LABELS[member.status]} &middot; Outstanding: R {summary.outstandingBalance.toFixed(2)}
+        <p className="text-sm text-neutral-500 flex items-center gap-2 flex-wrap">
+          <span>{member.membershipNo}</span>
+          <MemberStatusBadge status={member.status} />
+          <span>
+            Outstanding: <span className={outstandingBalanceClass(summary.outstandingBalance)}>R {summary.outstandingBalance.toFixed(2)}</span>
+          </span>
         </p>
       </div>
 

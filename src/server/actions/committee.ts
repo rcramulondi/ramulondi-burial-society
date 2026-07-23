@@ -8,10 +8,11 @@ import { revalidatePath } from "next/cache";
 import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import { z } from "zod";
+import { CommitteeRole } from "@prisma/client";
 import type { ActionResult } from "./member";
 
 const assignCommitteeRoleSchema = z.object({
-  role: z.enum(["CHAIRPERSON", "VICE_CHAIR", "SECRETARY", "TREASURER", "ADDITIONAL_MEMBER"]),
+  role: z.nativeEnum(CommitteeRole),
   memberId: z.string().min(1),
   startDate: z.coerce.date(),
 });

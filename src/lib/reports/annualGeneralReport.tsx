@@ -1,7 +1,7 @@
 import "server-only";
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
-import { prisma } from "@/lib/prisma";
 import { ReportHeader, ReportFooter, REPORT_COLORS } from "./pdfLayout";
+import { getAnnualFinancialSummary } from "./annualFinancialSummary";
 
 const styles = StyleSheet.create({
   page: { padding: 40, paddingBottom: 90, fontSize: 11, fontFamily: "Helvetica" },
@@ -23,24 +23,17 @@ const styles = StyleSheet.create({
  * reporting purposes.
  */
 export async function generateAnnualGeneralReport(year: number): Promise<Buffer> {
-  const yearStart = new Date(Date.UTC(year, 0, 1));
-  const yearEnd = new Date(Date.UTC(year + 1, 0, 1));
-
-  const [allocations, expenses, claimPayouts] = await Promise.all([
-    prisma.paymentAllocation.groupBy({ by: ["fund"], where: { year }, _sum: { amount: true } }),
-    prisma.expense.findMany({ where: { expenseDate: { gte: yearStart, lt: yearEnd } } }),
-    prisma.claimPayout.findMany({ where: { paidDate: { gte: yearStart, lt: yearEnd } } }),
-  ]);
-
-  const burialIncome = Number(allocations.find((a) => a.fund === "BURIAL")?._sum.amount ?? 0);
-  const foodIncome = Number(allocations.find((a) => a.fund === "FOOD")?._sum.amount ?? 0);
-  const totalIncome = burialIncome + foodIncome;
-
-  const expenseTotal = expenses.reduce((s, e) => s + Number(e.amount), 0);
-  const claimPayoutTotal = claimPayouts.reduce((s, p) => s + Number(p.amount), 0);
-  const totalExpenditure = expenseTotal + claimPayoutTotal;
-
-  const net = totalIncome - totalExpenditure;
+  const {
+    burialIncome,
+    foodIncome,
+    totalIncome,
+    otherExpenseCount,
+    otherExpenseTotal,
+    claimPayoutCount,
+    burialExpenditureTotal,
+    totalExpenditure,
+    net,
+  } = await getAnnualFinancialSummary(year);
 
   const doc = (
     <Document>
@@ -66,12 +59,12 @@ export async function generateAnnualGeneralReport(year: number): Promise<Buffer>
         <Text style={styles.sectionTitle}>Expenditure</Text>
         <View style={styles.table}>
           <View style={styles.tableRow}>
-            <Text style={styles.cell}>Recorded expenses ({expenses.length})</Text>
-            <Text style={styles.cell}>R {expenseTotal.toFixed(2)}</Text>
+            <Text style={styles.cell}>Recorded expenses ({otherExpenseCount})</Text>
+            <Text style={styles.cell}>R {otherExpenseTotal.toFixed(2)}</Text>
           </View>
           <View style={styles.tableRow}>
-            <Text style={styles.cell}>Claim payouts ({claimPayouts.length})</Text>
-            <Text style={styles.cell}>R {claimPayoutTotal.toFixed(2)}</Text>
+            <Text style={styles.cell}>Claim payouts ({claimPayoutCount})</Text>
+            <Text style={styles.cell}>R {burialExpenditureTotal.toFixed(2)}</Text>
           </View>
           <View style={styles.totalRow}>
             <Text style={styles.cellHeader}>Total expenditure</Text>

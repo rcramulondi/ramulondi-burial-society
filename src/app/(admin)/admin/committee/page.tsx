@@ -4,6 +4,7 @@ import { COMMITTEE_ROLE_LABELS, COMMITTEE_ROLE_ORDER } from "@/lib/statusLabels"
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import Card from "@/components/ui/Card";
+import SearchSelect from "@/components/ui/SearchSelect";
 
 export default async function AdminCommitteePage() {
   const [holders, history, eligibleMembers] = await Promise.all([
@@ -50,12 +51,15 @@ export default async function AdminCommitteePage() {
                           <input type="hidden" name="role" value={role} />
                           <label className="flex flex-col gap-1 text-sm">
                             Member
-                            <select name="memberId" required className="border border-slate-300 rounded px-3 py-2 bg-white">
-                              <option value="">Select a member</option>
-                              {eligibleMembers.map((m) => (
-                                <option key={m.id} value={m.id}>{m.firstName} {m.surname} ({m.membershipNo})</option>
-                              ))}
-                            </select>
+                            <SearchSelect
+                              name="memberId"
+                              placeholder="Search by name or membership no"
+                              required
+                              options={eligibleMembers.map((m) => ({
+                                value: m.id,
+                                label: `${m.firstName} ${m.surname} (${m.membershipNo})`,
+                              }))}
+                            />
                           </label>
                           <Field label="Start date" name="startDate" type="date" required />
                         </ActionForm>

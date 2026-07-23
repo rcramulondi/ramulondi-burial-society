@@ -1,12 +1,13 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, requireAuth } from "@/server/permissions";
+import { requireAdmin, requireAuth, requireOwnMemberOrAdmin } from "@/server/permissions";
 import { claimCreateSchema, claimPayoutSchema } from "@/lib/validation/schemas";
 import { checkClaimSubmissionEligibility, assertPayoutAllowed, computeClaimPayoutAmount } from "@/lib/business/claimEligibility";
 import { getOutstandingBalance } from "@/lib/business/contributionAllocation";
 import { refreshMemberStatus } from "@/lib/business/memberStatus";
 import { applyBeneficiaryStatusTransition } from "./beneficiary";
+import { uploadPrivateFile } from "@/lib/storage/blob";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -14,13 +15,24 @@ import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import type { ActionResult } from "./member";
 
-export async function submitClaim(input: unknown): Promise<ActionResult<{ id: string }>> {
+/**
+ * A death certificate is required to file a claim — accepted in the SAME
+ * submission as the claim itself (not a separate follow-up upload step,
+ * mirroring Expense's compulsory-receipt precedent) so a Claim can never
+ * exist without one attached.
+ */
+export async function submitClaim(input: unknown, deathCertificateFile?: File): Promise<ActionResult<{ id: string }>> {
   try {
     const parsed = claimCreateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
     }
     const data = parsed.data;
+
+    if (!(deathCertificateFile instanceof File) || deathCertificateFile.size === 0) {
+      return { ok: false, error: "A death certificate is required to file a claim." };
+    }
+
     // Claims are filed by a surviving family member on behalf of the deceased
     // (member or one of their beneficiaries) — any authenticated member (or
     // admin) may submit. Unlike a member's own status, submission does NOT
@@ -39,21 +51,39 @@ export async function submitClaim(input: unknown): Promise<ActionResult<{ id: st
       return { ok: false, error: eligibility.reason };
     }
 
-    const claim = await prisma.claim.create({
-      data: {
-        memberId: data.memberId,
-        beneficiaryId: data.beneficiaryId,
-        dateDeceased: data.dateDeceased,
-        placeOfBurial: data.placeOfBurial,
-        payoutRecipientName: data.payoutRecipientName,
-        payoutRecipientSurname: data.payoutRecipientSurname,
-        payoutRecipientIdNumber: data.payoutRecipientIdNumber,
-        payoutRecipientPhone: data.payoutRecipientPhone,
-        payoutRecipientEmail: data.payoutRecipientEmail,
-        bankName: data.bankName,
-        bankAccountNumber: data.bankAccountNumber,
-        submittedByUserId: session.user.id,
-      },
+    const uploaded = await uploadPrivateFile(deathCertificateFile, "claims");
+
+    const claim = await prisma.$transaction(async (tx) => {
+      const c = await tx.claim.create({
+        data: {
+          memberId: data.memberId,
+          beneficiaryId: data.beneficiaryId,
+          dateDeceased: data.dateDeceased,
+          placeOfBurial: data.placeOfBurial,
+          payoutRecipientName: data.payoutRecipientName,
+          payoutRecipientSurname: data.payoutRecipientSurname,
+          payoutRecipientIdNumber: data.payoutRecipientIdNumber,
+          payoutRecipientPhone: data.payoutRecipientPhone,
+          payoutRecipientEmail: data.payoutRecipientEmail,
+          bankName: data.bankName,
+          bankAccountNumber: data.bankAccountNumber,
+          submittedByUserId: session.user.id,
+        },
+      });
+      await tx.document.create({
+        data: {
+          ownerType: "DEATH_CERTIFICATE",
+          memberId: data.memberId,
+          beneficiaryId: data.beneficiaryId,
+          claimId: c.id,
+          storageKey: uploaded.storageKey,
+          fileName: uploaded.fileName,
+          mimeType: uploaded.mimeType,
+          sizeBytes: uploaded.sizeBytes,
+          uploadedByUserId: session.user.id,
+        },
+      });
+      return c;
     });
 
     await logAudit({
@@ -192,10 +222,27 @@ export async function recordClaimPayout(input: unknown): Promise<ActionResult<{ 
   }
 }
 
-export async function listClaims(status?: string) {
+/**
+ * `year` filters by payout year (`ClaimPayout.paidDate`) — a claim only has
+ * a concrete Rand value once paid, so that's the year it counts toward for
+ * reporting purposes, not the year it was filed.
+ */
+export async function listClaims(query?: { status?: string; year?: number }) {
   await requireAdmin();
   return prisma.claim.findMany({
-    where: status ? { status: status as never } : {},
+    where: {
+      ...(query?.status ? { status: query.status as never } : {}),
+      ...(query?.year
+        ? {
+            payout: {
+              paidDate: {
+                gte: new Date(Date.UTC(query.year, 0, 1)),
+                lt: new Date(Date.UTC(query.year + 1, 0, 1)),
+              },
+            },
+          }
+        : {}),
+    },
     include: { member: true, beneficiary: true, payout: true },
     orderBy: { submittedAt: "desc" },
   });
@@ -206,36 +253,40 @@ export async function getClaimOutstandingBalance(memberId: string) {
   return getOutstandingBalance(memberId);
 }
 
+/**
+ * Payouts applicable to this member — claims against the member themselves
+ * OR against any of their own beneficiaries (a policy pays out regardless of
+ * which of the two died).
+ */
+export async function getMemberPayoutSummary(memberId: string) {
+  await requireOwnMemberOrAdmin(memberId);
+  const beneficiaryIds = (await prisma.beneficiary.findMany({ where: { memberId }, select: { id: true } })).map((b) => b.id);
+
+  const payouts = await prisma.claimPayout.findMany({
+    where: { claim: { OR: [{ memberId }, { beneficiaryId: { in: beneficiaryIds } }] } },
+    include: { claim: { include: { beneficiary: true } } },
+    orderBy: { paidDate: "desc" },
+  });
+
+  return {
+    count: payouts.length,
+    total: Math.round(payouts.reduce((sum, p) => sum + Number(p.amount), 0) * 100) / 100,
+    payouts,
+  };
+}
+
 // --- FormData wrappers, for direct use with <ActionForm> ---
 
 /**
- * Resolves the deceased member by membership number (a lookup, not free
- * text) before submitting. If a beneficiary reference number is also given,
- * resolves and validates that it belongs to the same member — leave it
- * blank when the deceased is the member themselves.
+ * `memberId`/`beneficiaryId` are posted directly by the SearchSelect pickers
+ * on the filing form (no more free-text membershipNo/referenceNo lookup) —
+ * this is now a thin passthrough plus death-certificate file handling.
  */
 export async function submitClaimForm(formData: FormData) {
-  const membershipNo = String(formData.get("membershipNo") ?? "").trim();
-  const member = await prisma.member.findUnique({ where: { membershipNo } });
-  if (!member) return { ok: false as const, error: `No member found with membership number "${membershipNo}".` };
-
   const obj = formDataToObject(formData);
-  obj.memberId = member.id;
-  delete obj.membershipNo;
-
-  const beneficiaryReferenceNo = String(obj.beneficiaryReferenceNo ?? "").trim();
-  delete obj.beneficiaryReferenceNo;
-  if (beneficiaryReferenceNo) {
-    const beneficiary = await prisma.beneficiary.findFirst({
-      where: { referenceNo: beneficiaryReferenceNo, memberId: member.id },
-    });
-    if (!beneficiary) {
-      return { ok: false as const, error: `No beneficiary found with reference number "${beneficiaryReferenceNo}" for this member.` };
-    }
-    obj.beneficiaryId = beneficiary.id;
-  }
-
-  return submitClaim(obj);
+  if (!obj.beneficiaryId) delete obj.beneficiaryId;
+  const file = formData.get("deathCertificate");
+  return submitClaim(obj, file instanceof File ? file : undefined);
 }
 
 export async function reviewClaimForm(formData: FormData) {

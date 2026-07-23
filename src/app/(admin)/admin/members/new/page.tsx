@@ -1,8 +1,15 @@
+import { prisma } from "@/lib/prisma";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
+import SearchSelect from "@/components/ui/SearchSelect";
 import { createMemberForm } from "@/server/actions/member";
 
-export default function NewMemberPage() {
+export default async function NewMemberPage() {
+  const availableToSucceed = await prisma.member.findMany({
+    where: { status: "DECEASED", succeededByMember: null },
+    orderBy: { surname: "asc" },
+  });
+
   return (
     <div className="max-w-lg">
       <h1 className="text-xl font-semibold mb-6">Add a new member</h1>
@@ -28,6 +35,17 @@ export default function NewMemberPage() {
         <Field label="Email (optional)" name="email" type="email" />
         <Field label="ID number (optional)" name="idNumber" />
         <Field label="Package note (optional)" name="packageNote" />
+        <label className="flex flex-col gap-1 text-sm">
+          Succeeds deceased member (optional)
+          <SearchSelect
+            name="succeedsMemberId"
+            placeholder="Search by name or membership no"
+            options={availableToSucceed.map((m) => ({
+              value: m.id,
+              label: `${m.firstName} ${m.surname} (${m.membershipNo})`,
+            }))}
+          />
+        </label>
       </ActionForm>
     </div>
   );

@@ -1,9 +1,11 @@
-import { listBeneficiaries, createBeneficiaryForm, deleteBeneficiaryForm, updateBeneficiaryStatusForm } from "@/server/actions/beneficiary";
+import { listBeneficiaries, createBeneficiaryForm, deleteBeneficiaryForm, updateBeneficiaryForm, updateBeneficiaryStatusForm } from "@/server/actions/beneficiary";
 import { BENEFICIARY_STATUS_LABELS } from "@/lib/statusLabels";
+import { BeneficiaryStatusBadge } from "@/components/ui/StatusBadge";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import DeleteButton from "@/components/forms/DeleteButton";
 import Card from "@/components/ui/Card";
+import Modal from "@/components/ui/Modal";
 
 const RELATIONSHIPS = ["FATHER", "MOTHER", "SPOUSE", "SON", "DAUGHTER", "DEPENDENT", "OTHER"];
 const STATUS_OPTIONS = ["ACTIVE", "INACTIVE"] as const;
@@ -15,7 +17,34 @@ export default async function MemberBeneficiariesPage({ params }: { params: Prom
   return (
     <div className="flex flex-col gap-8">
       <Card>
-        <h2 className="font-medium mb-4 text-navy">Beneficiaries</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-medium text-navy">Beneficiaries</h2>
+          <Modal triggerLabel="New beneficiary" title="Add a beneficiary">
+            <p className="text-xs text-neutral-500 mb-4">
+              Only one Father and one Mother can be recorded per member. A beneficiary already recorded
+              as deceased cannot be re-registered.
+            </p>
+            <ActionForm action={createBeneficiaryForm} submitLabel="Add beneficiary">
+              <input type="hidden" name="memberId" value={memberId} />
+              <Field label="First name" name="firstName" required />
+              <Field label="Surname" name="surname" required />
+              <label className="flex flex-col gap-1 text-sm">
+                Relationship
+                <select name="relationship" required className="border border-slate-300 rounded px-3 py-2 bg-white">
+                  {RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
+                </select>
+              </label>
+              <Field label="ID number" name="idNumber" required />
+              <Field label="Phone (optional)" name="phone" />
+              <Field label="Email (optional)" name="email" type="email" />
+              <Field label="Date of birth (optional)" name="dateOfBirth" type="date" />
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" name="isDisabled" />
+                Dependent has a disability (covered beyond age 25)
+              </label>
+            </ActionForm>
+          </Modal>
+        </div>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -41,7 +70,7 @@ export default async function MemberBeneficiariesPage({ params }: { params: Prom
                   </td>
                   <td className="py-2 pr-3">
                     {b.status === "DECEASED" ? (
-                      <span className="text-neutral-500">{BENEFICIARY_STATUS_LABELS[b.status]}</span>
+                      <BeneficiaryStatusBadge status={b.status} />
                     ) : (
                       <ActionForm
                         action={updateBeneficiaryStatusForm}
@@ -60,11 +89,36 @@ export default async function MemberBeneficiariesPage({ params }: { params: Prom
                     )}
                   </td>
                   <td className="py-2 pr-3">
-                    <DeleteButton
-                      action={deleteBeneficiaryForm}
-                      hiddenFields={{ beneficiaryId: b.id }}
-                      confirmMessage="Remove this beneficiary? Only one deletion is allowed per 12-month period."
-                    />
+                    <div className="flex items-center gap-3">
+                      {b.status !== "DECEASED" && (
+                        <Modal triggerLabel="Edit" title={`Edit ${b.firstName} ${b.surname}`}>
+                          <ActionForm action={updateBeneficiaryForm} submitLabel="Save changes" onSuccessMessage="Beneficiary updated.">
+                            <input type="hidden" name="beneficiaryId" value={b.id} />
+                            <Field label="First name" name="firstName" defaultValue={b.firstName} required />
+                            <Field label="Surname" name="surname" defaultValue={b.surname} required />
+                            <label className="flex flex-col gap-1 text-sm">
+                              Relationship
+                              <select name="relationship" defaultValue={b.relationship} required className="border border-slate-300 rounded px-3 py-2 bg-white">
+                                {RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
+                              </select>
+                            </label>
+                            <Field label="ID number" name="idNumber" defaultValue={b.idNumber ?? ""} required />
+                            <Field label="Phone (optional)" name="phone" defaultValue={b.phone ?? ""} />
+                            <Field label="Email (optional)" name="email" type="email" defaultValue={b.email ?? ""} />
+                            <Field label="Date of birth (optional)" name="dateOfBirth" type="date" defaultValue={b.dateOfBirth?.toISOString().slice(0, 10) ?? ""} />
+                            <label className="flex items-center gap-2 text-sm">
+                              <input type="checkbox" name="isDisabled" defaultChecked={b.isDisabled} />
+                              Dependent has a disability (covered beyond age 25)
+                            </label>
+                          </ActionForm>
+                        </Modal>
+                      )}
+                      <DeleteButton
+                        action={deleteBeneficiaryForm}
+                        hiddenFields={{ beneficiaryId: b.id }}
+                        confirmMessage="Remove this beneficiary? Only one deletion is allowed per 12-month period."
+                      />
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -76,33 +130,6 @@ export default async function MemberBeneficiariesPage({ params }: { params: Prom
             </tbody>
           </table>
         </div>
-      </Card>
-
-      <Card className="max-w-md">
-        <h2 className="font-medium mb-4 text-navy">Add a beneficiary</h2>
-        <p className="text-xs text-neutral-500 mb-4">
-          Only one Father and one Mother can be recorded per member. A beneficiary already recorded
-          as deceased cannot be re-registered.
-        </p>
-        <ActionForm action={createBeneficiaryForm} submitLabel="Add beneficiary">
-          <input type="hidden" name="memberId" value={memberId} />
-          <Field label="First name" name="firstName" required />
-          <Field label="Surname" name="surname" required />
-          <label className="flex flex-col gap-1 text-sm">
-            Relationship
-            <select name="relationship" required className="border border-slate-300 rounded px-3 py-2 bg-white">
-              {RELATIONSHIPS.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-          </label>
-          <Field label="ID number" name="idNumber" required />
-          <Field label="Phone (optional)" name="phone" />
-          <Field label="Email (optional)" name="email" type="email" />
-          <Field label="Date of birth (optional)" name="dateOfBirth" type="date" />
-          <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" name="isDisabled" />
-            Dependent has a disability (covered beyond age 25)
-          </label>
-        </ActionForm>
       </Card>
     </div>
   );

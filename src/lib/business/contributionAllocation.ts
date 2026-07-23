@@ -1,4 +1,4 @@
-import { Fund, PaymentCategory, ContributionRate, PaymentAllocation } from "@prisma/client";
+import { Fund, PaymentCategory, ContributionRate, PaymentAllocation, MembershipType } from "@prisma/client";
 import { prisma } from "../prisma";
 import { refreshMemberStatus } from "./memberStatus";
 
@@ -160,6 +160,32 @@ export async function recordPaymentWithAllocation(input: {
 
 function round2(n: number): number {
   return Math.round(n * 100) / 100;
+}
+
+/**
+ * Full combined (BURIAL+FOOD) monthly rate for a membership type, effective
+ * for the given year/month. Consolidates the "full rate as of a date" math
+ * that was previously duplicated (as closures) across memberStatus.ts,
+ * contributionAllocation.ts, and claimEligibility.ts — used to color a
+ * month's actual contribution red when it falls short of what was due.
+ */
+export function computeFullRateForMonth(
+  rates: ContributionRate[],
+  membershipType: MembershipType,
+  year: number,
+  month: number
+): number {
+  const periodDate = new Date(Date.UTC(year, month - 1, 1));
+  return FUNDS.reduce((sum, fund) => {
+    const rate = rates.find(
+      (r) =>
+        r.membershipType === membershipType &&
+        r.fund === fund &&
+        r.effectiveFrom <= periodDate &&
+        (r.effectiveTo === null || periodDate < r.effectiveTo)
+    );
+    return sum + (rate ? Number(rate.amount) : 0);
+  }, 0);
 }
 
 type MemberForOutstanding = { reinstatementDate: Date | null; dateJoined: Date };
