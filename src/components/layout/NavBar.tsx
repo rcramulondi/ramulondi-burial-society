@@ -15,7 +15,9 @@ import {
   Settings,
   ScrollText,
   User,
+  ShieldCheck,
 } from "lucide-react";
+import type { AdminGroup } from "@prisma/client";
 
 const iconClass = "w-4 h-4";
 
@@ -28,24 +30,31 @@ const MEMBER_LINKS = [
   { href: "/profile", label: "Profile", icon: <User className={iconClass} /> },
 ];
 
-const ADMIN_LINKS = [
+/** `groups: undefined` means visible to every admin group; otherwise restricted to the listed groups. */
+const ADMIN_LINKS: { href: string; label: string; icon: React.ReactNode; groups?: AdminGroup[] }[] = [
   { href: "/admin/dashboard", label: "Dashboard", icon: <LayoutDashboard className={iconClass} /> },
   { href: "/admin/members", label: "Members", icon: <Users className={iconClass} /> },
-  { href: "/admin/rates", label: "Rates", icon: <Percent className={iconClass} /> },
+  { href: "/admin/rates", label: "Rates", icon: <Percent className={iconClass} />, groups: ["SUPER_ADMIN"] },
   { href: "/admin/claims", label: "Claims", icon: <FileCheck2 className={iconClass} /> },
   { href: "/admin/committee", label: "Committee", icon: <UsersRound className={iconClass} /> },
-  { href: "/admin/expenses", label: "Expenses", icon: <Receipt className={iconClass} /> },
-  { href: "/admin/unallocated-funds", label: "Unallocated Funds", icon: <Coins className={iconClass} /> },
+  { href: "/admin/expenses", label: "Expenses", icon: <Receipt className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
+  { href: "/admin/unallocated-funds", label: "Unallocated Funds", icon: <Coins className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
   { href: "/admin/reports", label: "Reports", icon: <FileBarChart className={iconClass} /> },
-  { href: "/admin/settings", label: "Settings", icon: <Settings className={iconClass} /> },
-  { href: "/admin/audit-log", label: "Audit Log", icon: <ScrollText className={iconClass} /> },
+  { href: "/admin/users", label: "Manage Users", icon: <ShieldCheck className={iconClass} />, groups: ["SUPER_ADMIN"] },
+  { href: "/admin/settings", label: "Settings", icon: <Settings className={iconClass} />, groups: ["SUPER_ADMIN"] },
+  { href: "/admin/audit-log", label: "Audit Log", icon: <ScrollText className={iconClass} />, groups: ["SUPER_ADMIN"] },
 ];
 
 export default async function NavBar() {
   const session = await auth();
   if (!session?.user) return null;
 
-  const links = session.user.role === "ADMIN" ? ADMIN_LINKS : MEMBER_LINKS;
+  const isAdmin = session.user.role === "ADMIN";
+  let links = isAdmin ? ADMIN_LINKS.filter((l) => !l.groups || l.groups.includes(session.user.adminGroup!)) : MEMBER_LINKS;
+
+  if (isAdmin && session.user.memberId) {
+    links = [...links, { href: "/profile", label: "Profile", icon: <User className={iconClass} /> }];
+  }
 
   return (
     <header className="bg-gradient-to-r from-navy to-secondary text-white">

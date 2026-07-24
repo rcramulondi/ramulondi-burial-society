@@ -57,12 +57,11 @@ export default async function AdminMembersPage({
               <th className="py-1 pr-3">Name</th>
               <th className="py-1 pr-3">Type</th>
               <th className="py-1 pr-3">Status</th>
-              <th className="py-1 pr-3">Joined</th>
               <th className="py-1 pr-3">Phone</th>
-              <th className="py-1 pr-3">Email</th>
               <th className="py-1 pr-3 text-right">Beneficiaries</th>
-              <th className="py-1 pr-3 text-right">Contributions to date</th>
-              <th className="py-1 pr-3 text-right">Outstanding balance</th>
+              <th className="py-1 pr-3 text-right">Contributions ({new Date().getFullYear()})</th>
+              <th className="py-1 pr-3 text-right">Outstanding ({new Date().getFullYear()})</th>
+              <th className="py-1 pr-3">Date of termination</th>
             </tr>
           </thead>
           <tbody>
@@ -74,12 +73,19 @@ export default async function AdminMembersPage({
                 <td className="py-1 pr-3">{m.firstName} {m.surname}</td>
                 <td className="py-1 pr-3">{m.type}</td>
                 <td className="py-1 pr-3"><MemberStatusBadge status={m.status} /></td>
-                <td className="py-1 pr-3">{m.dateJoined.toDateString()}</td>
                 <td className="py-1 pr-3">{m.phone ?? "—"}</td>
-                <td className="py-1 pr-3">{m.email ?? "—"}</td>
                 <td className="py-1 pr-3 text-right">{m.beneficiaryCount}</td>
-                <td className="py-1 pr-3 text-right">R {m.contributionsToDate.toFixed(2)}</td>
-                <td className={`py-1 pr-3 text-right ${outstandingBalanceClass(m.outstandingBalance)}`}>R {m.outstandingBalance.toFixed(2)}</td>
+                <td className="py-1 pr-3 text-right">R {m.contributionsThisYear.toFixed(2)}</td>
+                <td className={`py-1 pr-3 text-right ${outstandingBalanceClass(m.outstandingThisYear)}`}>R {m.outstandingThisYear.toFixed(2)}</td>
+                <td className="py-1 pr-3">
+                  {m.status === "IN_ACTIVE" && m.terminationDate ? (
+                    m.terminationDate.toDateString()
+                  ) : m.status === "ABOUT_TO_LAPSE" && m.projectedTerminationDate ? (
+                    <span className="font-bold text-red-700">{m.projectedTerminationDate.toDateString()}</span>
+                  ) : (
+                    "—"
+                  )}
+                </td>
               </tr>
             ))}
           </tbody>

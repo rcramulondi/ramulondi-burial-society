@@ -17,7 +17,7 @@ export default async function MemberDetailLayout({
   if (!member) notFound();
 
   const tabs = [
-    { href: `/admin/members/${id}`, label: "Maintenance" },
+    { href: `/admin/members/${id}`, label: "Member Details" },
     { href: `/admin/members/${id}/payments`, label: "Payment History" },
     { href: `/admin/members/${id}/beneficiaries`, label: "Beneficiaries" },
   ];

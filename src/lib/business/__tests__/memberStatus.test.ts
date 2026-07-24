@@ -76,6 +76,38 @@ describe("deriveMemberStatus", () => {
     // gap here: monthsElapsed=7, fullyPaid=1 -> gap=6 >= lapseMonths(6), but termination candidate (Nov 2026) is in the future
     expect(result.status).toBe("ABOUT_TO_LAPSE");
     expect(result.terminationDate).toBeNull();
+    // Not yet persisted as terminationDate, but still surfaced for display (e.g. the members list, in red).
+    expect(result.projectedTerminationDate).toEqual(new Date(Date.UTC(2026, 10, 1)));
+  });
+
+  it("surfaces projectedTerminationDate for the warning-threshold case too (before it reaches the lapse candidate)", () => {
+    const result = deriveMemberStatus(
+      baseInput({
+        paidAmountFor: (year, month) => (month <= 2 ? FULL_RATE : 0),
+        lastMonthWithAnyPayment: () => ({ year: 2026, month: 2 }),
+      })
+    );
+    expect(result.status).toBe("ABOUT_TO_LAPSE");
+    expect(result.projectedTerminationDate).toEqual(new Date(Date.UTC(2026, 7, 1)));
+  });
+
+  it("sets projectedTerminationDate equal to terminationDate once IN_ACTIVE", () => {
+    const result = deriveMemberStatus(
+      baseInput({
+        paidAmountFor: (year, month) => (month === 1 ? FULL_RATE : 0),
+        lastMonthWithAnyPayment: () => ({ year: 2026, month: 1 }),
+        today: new Date(Date.UTC(2026, 6, 1)),
+      })
+    );
+    expect(result.status).toBe("IN_ACTIVE");
+    expect(result.projectedTerminationDate).toEqual(result.terminationDate);
+  });
+
+  it("is null for ACTIVE and DECEASED", () => {
+    expect(deriveMemberStatus(baseInput()).projectedTerminationDate).toBeNull();
+    expect(
+      deriveMemberStatus(baseInput({ deceasedDate: new Date(Date.UTC(2026, 5, 1)) })).projectedTerminationDate
+    ).toBeNull();
   });
 
   it("treats a member joining later this year (future join date) as ACTIVE", () => {

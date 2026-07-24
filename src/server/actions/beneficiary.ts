@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireOwnMemberOrAdmin } from "@/server/permissions";
+import { requireOwnMemberOrAdmin, requireMemberMaintainer, requireAdminGroup } from "@/server/permissions";
 import { beneficiaryCreateSchema, beneficiaryUpdateSchema } from "@/lib/validation/schemas";
 import { generateBeneficiaryReference } from "@/lib/business/membershipNumber";
 import {
@@ -13,7 +13,6 @@ import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
-import { requireAdmin } from "@/server/permissions";
 import type { BeneficiaryStatus, Prisma } from "@prisma/client";
 import type { ActionResult } from "./member";
 
@@ -24,14 +23,18 @@ export async function createBeneficiary(input: unknown): Promise<ActionResult<{ 
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
     }
     const data = parsed.data;
-    const session = await requireOwnMemberOrAdmin(data.memberId);
+    const session = await requireMemberMaintainer(data.memberId);
+
+    const member = await prisma.member.findUniqueOrThrow({ where: { id: data.memberId } });
+    if (member.status === "DECEASED") {
+      return { ok: false, error: "This member is recorded as deceased — no new beneficiaries can be added." };
+    }
 
     if (data.relationship === "FATHER" || data.relationship === "MOTHER") {
       await assertSingleParentSlotAvailable(data.memberId, data.relationship);
     }
     await assertNotReRegisteringDeceased(data.idNumber);
 
-    const member = await prisma.member.findUniqueOrThrow({ where: { id: data.memberId } });
     const referenceNo = await generateBeneficiaryReference(member.membershipNo, member.id);
 
     const beneficiary = await prisma.beneficiary.create({
@@ -80,7 +83,7 @@ export async function updateBeneficiary(beneficiaryId: string, input: unknown): 
     const data = parsed.data;
 
     const existing = await prisma.beneficiary.findUniqueOrThrow({ where: { id: beneficiaryId } });
-    const session = await requireOwnMemberOrAdmin(existing.memberId);
+    const session = await requireMemberMaintainer(existing.memberId);
 
     if (existing.status === "DECEASED") {
       return { ok: false, error: "This beneficiary is recorded as deceased and can no longer be edited." };
@@ -126,7 +129,7 @@ export async function updateBeneficiary(beneficiaryId: string, input: unknown): 
 export async function deleteBeneficiary(beneficiaryId: string): Promise<ActionResult<{ id: string }>> {
   try {
     const beneficiary = await prisma.beneficiary.findUniqueOrThrow({ where: { id: beneficiaryId } });
-    const session = await requireOwnMemberOrAdmin(beneficiary.memberId);
+    const session = await requireMemberMaintainer(beneficiary.memberId);
 
     await assertDeletionAllowed(beneficiary.memberId);
 
@@ -204,7 +207,7 @@ export async function updateBeneficiaryStatus(
   status: BeneficiaryStatus
 ): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "SECRETARY");
     const beneficiary = await prisma.beneficiary.findUniqueOrThrow({ where: { id: beneficiaryId } });
 
     const result = await applyBeneficiaryStatusTransition(beneficiaryId, status, session.user.id);
@@ -215,6 +218,61 @@ export async function updateBeneficiaryStatus(
     return { ok: true, data: { id: beneficiaryId } };
   } catch (e) {
     return { ok: false, error: toSafeErrorMessage(e, "Failed to update beneficiary status.") };
+  }
+}
+
+/**
+ * Moves a beneficiary to a different member's policy — a successor/deceased-
+ * handling tool, only usable once the beneficiary's current member is
+ * DECEASED (that member's own policy has already been settled, so their
+ * beneficiaries need a new home). The reference number is regenerated under
+ * the new member for consistency going forward (old printed references would
+ * otherwise no longer match).
+ */
+export async function reallocateBeneficiary(beneficiaryId: string, newMemberId: string): Promise<ActionResult<{ id: string }>> {
+  try {
+    const session = await requireAdminGroup("SUPER_ADMIN", "SECRETARY");
+
+    const beneficiary = await prisma.beneficiary.findUniqueOrThrow({ where: { id: beneficiaryId }, include: { member: true } });
+    if (beneficiary.member.status !== "DECEASED") {
+      return { ok: false, error: "Beneficiaries can only be reallocated once the current member is deceased." };
+    }
+    if (newMemberId === beneficiary.memberId) {
+      return { ok: false, error: "Select a different member to reallocate to." };
+    }
+
+    const newMember = await prisma.member.findUniqueOrThrow({ where: { id: newMemberId } });
+    if (newMember.status === "DECEASED") {
+      return { ok: false, error: "Cannot reallocate a beneficiary to a member who is also recorded as deceased." };
+    }
+
+    if (beneficiary.relationship === "FATHER" || beneficiary.relationship === "MOTHER") {
+      await assertSingleParentSlotAvailable(newMemberId, beneficiary.relationship);
+    }
+
+    const referenceNo = await generateBeneficiaryReference(newMember.membershipNo, newMemberId);
+
+    await prisma.beneficiary.update({
+      where: { id: beneficiaryId },
+      data: { memberId: newMemberId, referenceNo },
+    });
+
+    await logAudit({
+      entityType: "Beneficiary",
+      entityId: beneficiaryId,
+      memberId: newMemberId,
+      action: "UPDATE",
+      performedByUserId: session.user.id,
+      metadata: { reallocatedFrom: beneficiary.memberId, reallocatedTo: newMemberId },
+    });
+
+    revalidatePath(`/admin/members/${beneficiary.memberId}`);
+    revalidatePath(`/admin/members/${beneficiary.memberId}/beneficiaries`);
+    revalidatePath(`/admin/members/${newMemberId}`);
+    revalidatePath(`/admin/members/${newMemberId}/beneficiaries`);
+    return { ok: true, data: { id: beneficiaryId } };
+  } catch (e) {
+    return { ok: false, error: toSafeErrorMessage(e, "Failed to reallocate beneficiary.") };
   }
 }
 
@@ -239,5 +297,12 @@ export async function updateBeneficiaryStatusForm(formData: FormData) {
   return updateBeneficiaryStatus(
     String(formData.get("beneficiaryId") ?? ""),
     String(formData.get("status") ?? "") as BeneficiaryStatus
+  );
+}
+
+export async function reallocateBeneficiaryForm(formData: FormData) {
+  return reallocateBeneficiary(
+    String(formData.get("beneficiaryId") ?? ""),
+    String(formData.get("newMemberId") ?? "")
   );
 }

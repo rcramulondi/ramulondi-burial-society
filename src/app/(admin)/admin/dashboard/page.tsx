@@ -8,7 +8,16 @@ import Card from "@/components/ui/Card";
 import Link from "next/link";
 import type { MemberStatus } from "@prisma/client";
 
-export default async function AdminDashboardPage() {
+export default async function AdminDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string }>;
+}) {
+  const { year: yearParam } = await searchParams;
+  const currentYear = new Date().getFullYear();
+  const isConsolidated = yearParam === "consolidated";
+  const selectedYear = !isConsolidated && yearParam ? Number(yearParam) : currentYear;
+
   const [statusCounts, pendingClaims, fundTotals, { activeCounts, rates }, expenses, claimPayouts, unallocatedFunds] = await Promise.all([
     prisma.member.groupBy({ by: ["status"], _count: true }),
     prisma.claim.count({ where: { status: "PENDING" } }),
@@ -33,8 +42,8 @@ export default async function AdminDashboardPage() {
   });
 
   const years = Array.from(new Set(fundTotals.map((f) => f.year))).sort((a, b) => b - a);
+  const yearOptions = Array.from(new Set([currentYear, ...years])).sort((a, b) => b - a);
 
-  const totalCollectedAllYears = fundTotals.reduce((sum, f) => sum + Number(f._sum.amount ?? 0), 0);
   const unallocatedTotal = unallocatedFunds.reduce((sum, f) => sum + f.remaining, 0);
 
   const expensesByYear = (year: number) =>
@@ -42,9 +51,42 @@ export default async function AdminDashboardPage() {
   const claimPayoutsByYear = (year: number) =>
     claimPayouts.filter((p) => p.paidDate.getUTCFullYear() === year).reduce((s, p) => s + Number(p.amount), 0);
 
+  // Financial tiles: "this year" or "all years" (consolidated) based on the
+  // selector. Member-status tiles/pie chart and Unallocated Funds are
+  // current-snapshot/running-balance figures by nature, not year-bound, so
+  // they're unaffected by this selector.
+  const totalCollected = isConsolidated
+    ? fundTotals.reduce((sum, f) => sum + Number(f._sum.amount ?? 0), 0)
+    : years.filter((y) => y === selectedYear).reduce((sum, y) => {
+        const burial = Number(fundTotals.find((f) => f.year === y && f.fund === "BURIAL")?._sum.amount ?? 0);
+        const food = Number(fundTotals.find((f) => f.year === y && f.fund === "FOOD")?._sum.amount ?? 0);
+        return sum + burial + food;
+      }, 0);
+  const burialPayoutsSelected = isConsolidated
+    ? claimPayouts.reduce((s, p) => s + Number(p.amount), 0)
+    : claimPayoutsByYear(selectedYear);
+  const otherExpensesSelected = isConsolidated
+    ? expenses.reduce((s, e) => s + Number(e.amount), 0)
+    : expensesByYear(selectedYear);
+
+  const selectionLabel = isConsolidated ? "all years" : String(selectedYear);
+
   return (
     <div className="flex flex-col gap-8">
-      <h1 className="text-xl font-semibold text-navy">Admin dashboard</h1>
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <h1 className="text-xl font-semibold text-navy">Admin dashboard</h1>
+        <form className="flex gap-2 text-sm">
+          <select name="year" defaultValue={isConsolidated ? "consolidated" : selectedYear} className="border border-slate-300 rounded px-3 py-2 bg-white">
+            {yearOptions.map((y) => (
+              <option key={y} value={y}>{y}</option>
+            ))}
+            <option value="consolidated">All years (consolidated)</option>
+          </select>
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+            Go
+          </button>
+        </form>
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {(Object.keys(STATUS_LABELS) as MemberStatus[]).map((status) => (
@@ -62,9 +104,21 @@ export default async function AdminDashboardPage() {
           </Card>
         </Link>
         <Card>
-          <p className="text-xs text-neutral-500">Total collected (all years)</p>
-          <p className="text-lg font-semibold mt-1 text-navy">R {totalCollectedAllYears.toFixed(2)}</p>
+          <p className="text-xs text-neutral-500">Total collected ({selectionLabel})</p>
+          <p className="text-lg font-semibold mt-1 text-navy">R {totalCollected.toFixed(2)}</p>
         </Card>
+        <Link href={isConsolidated ? "/admin/claims" : `/admin/claims?year=${selectedYear}`} className="block">
+          <Card className="hover:border-accent transition-colors">
+            <p className="text-xs text-neutral-500">Burial payouts ({selectionLabel})</p>
+            <p className="text-lg font-semibold mt-1 text-navy">R {burialPayoutsSelected.toFixed(2)}</p>
+          </Card>
+        </Link>
+        <Link href="/admin/expenses" className="block">
+          <Card className="hover:border-accent transition-colors">
+            <p className="text-xs text-neutral-500">Other expenses ({selectionLabel})</p>
+            <p className="text-lg font-semibold mt-1 text-navy">R {otherExpensesSelected.toFixed(2)}</p>
+          </Card>
+        </Link>
         <Link href="/admin/unallocated-funds" className="block">
           <Card className="hover:border-accent transition-colors">
             <p className="text-xs text-neutral-500">Unallocated funds</p>

@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, requireAuth, requireOwnMemberOrAdmin } from "@/server/permissions";
+import { requireAdmin, requireAdminGroup, requireMemberMaintainer, requireOwnMemberOrAdmin } from "@/server/permissions";
 import { claimCreateSchema, claimPayoutSchema } from "@/lib/validation/schemas";
 import { checkClaimSubmissionEligibility, assertPayoutAllowed, computeClaimPayoutAmount } from "@/lib/business/claimEligibility";
 import { getOutstandingBalance } from "@/lib/business/contributionAllocation";
@@ -34,14 +34,14 @@ export async function submitClaim(input: unknown, deathCertificateFile?: File): 
     }
 
     // Claims are filed by a surviving family member on behalf of the deceased
-    // (member or one of their beneficiaries) — any authenticated member (or
-    // admin) may submit. Unlike a member's own status, submission does NOT
-    // require the member/beneficiary to already be marked deceased —
-    // approval is what does that (see reviewClaim below). Eligibility below
-    // covers cooling-off, no duplicate claim, and not already lapsed at
-    // death. Admin review before payout is the real authorization gate, not
-    // who happens to click submit.
-    const session = await requireAuth();
+    // (member or one of their beneficiaries) — the member themself, or a
+    // Super Admin/Secretary maintaining the record on their behalf. Unlike a
+    // member's own status, submission does NOT require the member/
+    // beneficiary to already be marked deceased — approval is what does
+    // that (see reviewClaim below). Eligibility below covers cooling-off, no
+    // duplicate claim, and not already lapsed at death. Admin review before
+    // payout is the real authorization gate, not who happens to click submit.
+    const session = await requireMemberMaintainer(data.memberId);
 
     const eligibility = await checkClaimSubmissionEligibility(data.memberId, {
       dateDeceased: data.dateDeceased,
@@ -110,7 +110,7 @@ const reviewSchema = z.object({
 
 export async function reviewClaim(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "SECRETARY");
     const parsed = reviewSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
@@ -175,7 +175,7 @@ export async function reviewClaim(input: unknown): Promise<ActionResult<{ id: st
 
 export async function recordClaimPayout(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "TREASURER");
     const parsed = claimPayoutSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };

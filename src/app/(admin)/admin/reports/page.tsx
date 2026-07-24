@@ -21,6 +21,20 @@ export default async function AdminReportsPage({
       <h1 className="text-xl font-semibold text-navy">Reports</h1>
 
       <Card>
+        <h2 className="font-medium mb-2 text-navy">Analytics dashboard</h2>
+        <p className="text-sm text-neutral-500 mb-4">
+          Membership and financial charts: status split, contributions vs. expenditure, fund split, and membership growth.
+        </p>
+        <Link href="/admin/reports/analytics" className="text-accent hover:underline text-sm">Open analytics dashboard</Link>
+      </Card>
+
+      <Card>
+        <h2 className="font-medium mb-2 text-navy">Income vs. expenditure statement</h2>
+        <p className="text-sm text-neutral-500 mb-4">Monthly income and expenditure with a detailed breakdown for a given year.</p>
+        <Link href="/admin/reports/income-statement" className="text-accent hover:underline text-sm">Open income statement</Link>
+      </Card>
+
+      <Card>
         <h2 className="font-medium mb-2 text-navy">Society statement</h2>
         <p className="text-sm text-neutral-500 mb-4">Every member&apos;s contribution total for a given year.</p>
         <ul className="flex flex-wrap gap-3 text-sm">

@@ -1,6 +1,6 @@
 "use server";
 
-import { requireAdmin } from "@/server/permissions";
+import { requireAdmin, requireAdminGroup } from "@/server/permissions";
 import { getAllSettings, setSetting, DEFAULT_SETTINGS, type SettingKey } from "@/lib/settings";
 import { revalidatePath } from "next/cache";
 import { toSafeErrorMessage } from "@/lib/actionError";
@@ -13,7 +13,7 @@ export async function loadSettings() {
 
 export async function updateSetting(key: string, value: number): Promise<ActionResult<{ key: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN");
     if (!(key in DEFAULT_SETTINGS)) return { ok: false, error: "Unknown setting." };
     if (!Number.isFinite(value) || value < 0) return { ok: false, error: "Value must be a non-negative number." };
 

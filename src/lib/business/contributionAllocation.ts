@@ -1,6 +1,7 @@
 import { Fund, PaymentCategory, ContributionRate, PaymentAllocation, MembershipType } from "@prisma/client";
 import { prisma } from "../prisma";
-import { refreshMemberStatus } from "./memberStatus";
+import { refreshMemberStatus, deriveMemberStatus } from "./memberStatus";
+import { getSetting } from "../settings";
 
 const FORWARD_WINDOW_MONTHS = 24;
 const FUNDS: Fund[] = ["BURIAL", "FOOD"];
@@ -32,19 +33,34 @@ export async function recordPaymentWithAllocation(input: {
   reference?: string;
   notes?: string;
   recordedByUserId?: string;
+  /** Optional proof-of-payment, already uploaded to blob storage — inserted in the same transaction as the Payment row so it can never exist without one. */
+  proofDocument?: { storageKey: string; fileName: string; mimeType: string; sizeBytes: number; uploadedByUserId: string };
 }): Promise<{ paymentId: string; unallocatedAmount: number }> {
   if (input.category === "JOINING_FEE") {
-    const payment = await prisma.payment.create({
-      data: {
-        memberId: input.memberId,
-        category: "JOINING_FEE",
-        amount: input.amount,
-        paymentDate: input.paymentDate,
-        method: input.method,
-        reference: input.reference,
-        notes: input.notes,
-        recordedByUserId: input.recordedByUserId,
-      },
+    const payment = await prisma.$transaction(async (tx) => {
+      const p = await tx.payment.create({
+        data: {
+          memberId: input.memberId,
+          category: "JOINING_FEE",
+          amount: input.amount,
+          paymentDate: input.paymentDate,
+          method: input.method,
+          reference: input.reference,
+          notes: input.notes,
+          recordedByUserId: input.recordedByUserId,
+        },
+      });
+      if (input.proofDocument) {
+        await tx.document.create({
+          data: {
+            ownerType: "PAYMENT_PROOF",
+            memberId: input.memberId,
+            paymentId: p.id,
+            ...input.proofDocument,
+          },
+        });
+      }
+      return p;
     });
     return { paymentId: payment.id, unallocatedAmount: 0 };
   }
@@ -147,6 +163,17 @@ export async function recordPaymentWithAllocation(input: {
           month: a.month,
           amount: a.amount,
         })),
+      });
+    }
+
+    if (input.proofDocument) {
+      await tx.document.create({
+        data: {
+          ownerType: "PAYMENT_PROOF",
+          memberId: input.memberId,
+          paymentId: payment.id,
+          ...input.proofDocument,
+        },
       });
     }
 
@@ -281,6 +308,103 @@ export async function getOutstandingBalancesForMembers(
     result.set(member.id, {
       outstandingBalance: computeOutstanding(member, memberRates, memberAllocations, asOf),
       contributionsToDate: round2(memberAllocations.reduce((sum, a) => sum + Number(a.amount), 0)),
+    });
+  }
+
+  return result;
+}
+
+type MemberForCurrentYearFigures = {
+  id: string;
+  type: MembershipType;
+  dateJoined: Date;
+  reinstatementDate: Date | null;
+  deceasedDate: Date | null;
+};
+
+/**
+ * Members-list-specific figures, deliberately distinct from the lifetime
+ * `getOutstandingBalancesForMembers` above (which backs claim-payout
+ * eligibility and must not change): contributions and outstanding balance
+ * scoped to the current year only, plus the termination-date column (actual
+ * for IN_ACTIVE, a red projected date for ABOUT_TO_LAPSE). One batched pass
+ * over allocations/rates/settings already needed for the list, no N+1.
+ */
+export async function getCurrentYearMemberFigures(
+  memberIds: string[],
+  asOf: Date = new Date()
+): Promise<Map<string, { contributionsThisYear: number; outstandingThisYear: number; terminationDate: Date | null; projectedTerminationDate: Date | null; status: string }>> {
+  const result = new Map<string, { contributionsThisYear: number; outstandingThisYear: number; terminationDate: Date | null; projectedTerminationDate: Date | null; status: string }>();
+  if (memberIds.length === 0) return result;
+
+  const year = asOf.getUTCFullYear();
+  const currentMonth = asOf.getUTCMonth() + 1;
+
+  const [members, rates, allocations, lapseMonths, warningMonths] = await Promise.all([
+    prisma.member.findMany({ where: { id: { in: memberIds } } }),
+    prisma.contributionRate.findMany(),
+    prisma.paymentAllocation.findMany({ where: { memberId: { in: memberIds } } }),
+    getSetting("ARREARS_LAPSE_MONTHS"),
+    getSetting("ARREARS_WARNING_MONTHS"),
+  ]);
+
+  const allocationsByMember = new Map<string, PaymentAllocation[]>();
+  for (const a of allocations) {
+    const list = allocationsByMember.get(a.memberId) ?? [];
+    list.push(a);
+    allocationsByMember.set(a.memberId, list);
+  }
+
+  for (const member of members as MemberForCurrentYearFigures[]) {
+    const memberAllocations = allocationsByMember.get(member.id) ?? [];
+    const memberRates = rates.filter((r) => r.membershipType === member.type);
+
+    const contributionsThisYear = round2(
+      memberAllocations.filter((a) => a.year === year).reduce((sum, a) => sum + Number(a.amount), 0)
+    );
+
+    const startMonth = member.dateJoined.getUTCFullYear() === year ? member.dateJoined.getUTCMonth() + 1 : 1;
+    let outstandingThisYear = 0;
+    for (let m = startMonth; m <= currentMonth; m++) {
+      const periodDate = new Date(Date.UTC(year, m - 1, 1));
+      const fullRate = computeFullRateForMonth(memberRates, member.type, year, m);
+      const paid = memberAllocations
+        .filter((a) => a.year === year && a.month === m)
+        .reduce((sum, a) => sum + Number(a.amount), 0);
+      outstandingThisYear += Math.max(0, fullRate - paid);
+    }
+
+    const fullRateFor = (date: Date) => computeFullRateForMonth(memberRates, member.type, date.getUTCFullYear(), date.getUTCMonth() + 1);
+    const paidAmountFor = (y: number, m: number) =>
+      memberAllocations.filter((a) => a.year === y && a.month === m).reduce((sum, a) => sum + Number(a.amount), 0);
+    const lastMonthWithAnyPayment = () => {
+      let best: { year: number; month: number } | null = null;
+      for (const a of memberAllocations) {
+        if (!best || a.year > best.year || (a.year === best.year && a.month > best.month)) {
+          best = { year: a.year, month: a.month };
+        }
+      }
+      return best;
+    };
+
+    const statusResult = deriveMemberStatus({
+      deceasedDate: member.deceasedDate,
+      dateJoined: member.dateJoined,
+      reinstatementDate: member.reinstatementDate,
+      today: asOf,
+      fullRateFor,
+      paidAmountFor,
+      lastMonthWithAnyPayment,
+      lapseMonths,
+      warningMonths,
+    });
+
+    result.set(member.id, {
+      contributionsThisYear,
+      outstandingThisYear: round2(outstandingThisYear),
+      terminationDate: statusResult.terminationDate,
+      projectedTerminationDate: statusResult.projectedTerminationDate,
+      status: statusResult.status,
     });
   }
 

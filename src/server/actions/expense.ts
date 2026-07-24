@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/server/permissions";
+import { requireAdmin, requireAdminGroup } from "@/server/permissions";
 import { uploadPrivateFile } from "@/lib/storage/blob";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
@@ -26,7 +26,7 @@ const expenseCreateSchema = z.object({
  */
 export async function createExpense(formData: FormData): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "TREASURER");
 
     const file = formData.get("file");
     if (!(file instanceof File) || file.size === 0) {

@@ -1,11 +1,11 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, requireOwnMemberOrAdmin } from "@/server/permissions";
+import { requireAdmin, requireAdminGroup, requireMemberMaintainer, requireOwnMemberOrAdmin } from "@/server/permissions";
 import { memberCreateSchema, memberUpdateSchema } from "@/lib/validation/schemas";
 import { generateMembershipNumber } from "@/lib/business/membershipNumber";
 import { refreshMemberStatus } from "@/lib/business/memberStatus";
-import { getOutstandingBalancesForMembers } from "@/lib/business/contributionAllocation";
+import { getCurrentYearMemberFigures } from "@/lib/business/contributionAllocation";
 import { assertSuccessionTarget } from "@/lib/business/memberRules";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
@@ -16,7 +16,7 @@ export type ActionResult<T> = { ok: true; data: T } | { ok: false; error: string
 
 export async function createMember(input: unknown): Promise<ActionResult<{ id: string; membershipNo: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "SECRETARY");
     const parsed = memberCreateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
@@ -63,7 +63,7 @@ export async function createMember(input: unknown): Promise<ActionResult<{ id: s
 
 export async function updateMember(memberId: string, input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireOwnMemberOrAdmin(memberId);
+    const session = await requireMemberMaintainer(memberId);
 
     const existing = await prisma.member.findUniqueOrThrow({ where: { id: memberId } });
     if (existing.status === "DECEASED") {
@@ -161,17 +161,18 @@ export async function countMembers(query?: { search?: string; status?: string })
 }
 
 /**
- * Members list enriched with beneficiary count, contributions-to-date, and
- * outstanding balance — batched to a fixed number of DB round trips
- * regardless of list size (see getOutstandingBalancesForMembers). Paginated
+ * Members list enriched with beneficiary count, current-year contributions,
+ * current-year outstanding balance, and termination date (actual or, for
+ * ABOUT_TO_LAPSE members, projected) — batched to a fixed number of DB round
+ * trips regardless of list size (see getCurrentYearMemberFigures). Paginated
  * at MEMBERS_PAGE_SIZE per page.
  */
 export async function listMembersWithSummary(query?: { search?: string; status?: string; page?: number }) {
   const [members, total] = await Promise.all([listMembers(query), countMembers(query)]);
   const memberIds = members.map((m) => m.id);
 
-  const [balances, beneficiaryCounts] = await Promise.all([
-    getOutstandingBalancesForMembers(memberIds),
+  const [figures, beneficiaryCounts] = await Promise.all([
+    getCurrentYearMemberFigures(memberIds),
     prisma.beneficiary.groupBy({
       by: ["memberId"],
       where: { memberId: { in: memberIds }, deletedAt: null, status: { in: ["ACTIVE", "INACTIVE"] } },
@@ -182,12 +183,17 @@ export async function listMembersWithSummary(query?: { search?: string; status?:
   const beneficiaryCountByMember = new Map(beneficiaryCounts.map((b) => [b.memberId, b._count]));
 
   return {
-    members: members.map((m) => ({
-      ...m,
-      beneficiaryCount: beneficiaryCountByMember.get(m.id) ?? 0,
-      contributionsToDate: balances.get(m.id)?.contributionsToDate ?? 0,
-      outstandingBalance: balances.get(m.id)?.outstandingBalance ?? 0,
-    })),
+    members: members.map((m) => {
+      const f = figures.get(m.id);
+      return {
+        ...m,
+        beneficiaryCount: beneficiaryCountByMember.get(m.id) ?? 0,
+        contributionsThisYear: f?.contributionsThisYear ?? 0,
+        outstandingThisYear: f?.outstandingThisYear ?? 0,
+        terminationDate: f?.terminationDate ?? null,
+        projectedTerminationDate: f?.projectedTerminationDate ?? null,
+      };
+    }),
     total,
     page: Math.max(1, query?.page ?? 1),
     pageSize: MEMBERS_PAGE_SIZE,

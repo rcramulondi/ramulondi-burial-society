@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/server/permissions";
+import { requireAdmin, requireAdminGroup } from "@/server/permissions";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { formDataToObject } from "@/lib/formData";
@@ -16,7 +16,7 @@ const claimRateCreateSchema = z.object({
 
 export async function createClaimRate(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN");
     const parsed = claimRateCreateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };

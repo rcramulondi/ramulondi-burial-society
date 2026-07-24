@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/server/permissions";
+import { requireAdmin, requireAdminGroup } from "@/server/permissions";
 import { recordPaymentWithAllocation } from "@/lib/business/contributionAllocation";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
@@ -20,7 +20,7 @@ const unallocatedFundCreateSchema = z.object({
 
 export async function recordUnallocatedFund(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "TREASURER");
     const parsed = unallocatedFundCreateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
@@ -73,7 +73,7 @@ const allocateSchema = z.object({
  */
 export async function allocateUnallocatedFund(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "TREASURER");
     const parsed = allocateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };

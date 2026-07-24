@@ -1,9 +1,10 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, requireOwnMemberOrAdmin } from "@/server/permissions";
+import { requireAdmin, requireAdminGroup, requireOwnMemberOrAdmin } from "@/server/permissions";
 import { paymentCreateSchema } from "@/lib/validation/schemas";
 import { recordPaymentWithAllocation, getOutstandingBalance } from "@/lib/business/contributionAllocation";
+import { uploadPrivateFile } from "@/lib/storage/blob";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -12,9 +13,12 @@ import { toSafeErrorMessage } from "@/lib/actionError";
 import type { ActionResult } from "./member";
 import type { Fund } from "@prisma/client";
 
-export async function recordPayment(input: unknown): Promise<ActionResult<{ paymentId: string; unallocatedAmount: number }>> {
+export async function recordPayment(
+  input: unknown,
+  proofFile?: File
+): Promise<ActionResult<{ paymentId: string; unallocatedAmount: number }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN", "TREASURER");
     const parsed = paymentCreateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
@@ -26,6 +30,11 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ paym
       return { ok: false, error: "This member is recorded as deceased and payments can no longer be recorded against their record." };
     }
 
+    // Proof of payment is optional at capture time (unlike the compulsory
+    // Expense/Claim receipts) — uploaded before the transaction so it can be
+    // inserted atomically alongside the Payment row when present.
+    const uploaded = proofFile && proofFile.size > 0 ? await uploadPrivateFile(proofFile, "payments") : null;
+
     const result = await recordPaymentWithAllocation({
       memberId: data.memberId,
       amount: data.amount,
@@ -35,6 +44,7 @@ export async function recordPayment(input: unknown): Promise<ActionResult<{ paym
       reference: data.reference,
       notes: data.notes,
       recordedByUserId: session.user.id,
+      proofDocument: uploaded ? { ...uploaded, uploadedByUserId: session.user.id } : undefined,
     });
 
     await logAudit({
@@ -63,7 +73,7 @@ const rateCreateSchema = z.object({
 
 export async function createContributionRate(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN");
     const parsed = rateCreateSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
@@ -171,7 +181,10 @@ export async function listMemberPayments(memberId: string, options?: { year?: nu
 // --- FormData wrappers, for direct use with <ActionForm> ---
 
 export async function recordPaymentForm(formData: FormData) {
-  return recordPayment(formDataToObject(formData));
+  const obj = formDataToObject(formData);
+  const file = formData.get("proofFile");
+  delete obj.proofFile;
+  return recordPayment(obj, file instanceof File ? file : undefined);
 }
 
 export async function createContributionRateForm(formData: FormData) {

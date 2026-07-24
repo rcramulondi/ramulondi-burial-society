@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireAuth, requireAdmin } from "@/server/permissions";
+import { requireAuth, requireAdminGroup } from "@/server/permissions";
 import { assertMemberEligibleForCommittee } from "@/lib/business/committeeRules";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
@@ -19,7 +19,7 @@ const assignCommitteeRoleSchema = z.object({
 
 export async function assignCommitteeRole(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
-    const session = await requireAdmin();
+    const session = await requireAdminGroup("SUPER_ADMIN");
     const parsed = assignCommitteeRoleSchema.safeParse(input);
     if (!parsed.success) {
       return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };

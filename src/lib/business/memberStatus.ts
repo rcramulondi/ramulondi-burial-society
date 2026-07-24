@@ -5,6 +5,14 @@ import { getSetting } from "../settings";
 export type StatusResult = {
   status: MemberStatus;
   terminationDate: Date | null;
+  /**
+   * The same lapse-candidate date the function computes internally,
+   * regardless of whether it has arrived yet — non-null for both
+   * `IN_ACTIVE` (where it equals `terminationDate`) and `ABOUT_TO_LAPSE`
+   * (where it's a future projection, not yet persisted as `terminationDate`).
+   * Null for `ACTIVE`/`DECEASED`. Compute-on-read only — never persisted.
+   */
+  projectedTerminationDate: Date | null;
 };
 
 export type DeriveStatusInput = {
@@ -28,7 +36,7 @@ export type DeriveStatusInput = {
  * who joined mid-year is not penalized for months before they joined.
  */
 export function deriveMemberStatus(input: DeriveStatusInput): StatusResult {
-  if (input.deceasedDate) return { status: "DECEASED", terminationDate: null };
+  if (input.deceasedDate) return { status: "DECEASED", terminationDate: null, projectedTerminationDate: null };
 
   const start = input.reinstatementDate ?? input.dateJoined;
   const todayYear = input.today.getFullYear();
@@ -37,7 +45,7 @@ export function deriveMemberStatus(input: DeriveStatusInput): StatusResult {
   const effectiveStartMonth = start.getFullYear() === todayYear ? start.getMonth() + 1 : 1;
   // Member joins later this year in the future, or hasn't started yet this cycle.
   if (effectiveStartMonth > currentMonth) {
-    return { status: "ACTIVE", terminationDate: null };
+    return { status: "ACTIVE", terminationDate: null, projectedTerminationDate: null };
   }
 
   const monthsElapsed = Math.max(0, currentMonth - effectiveStartMonth + 1);
@@ -57,12 +65,12 @@ export function deriveMemberStatus(input: DeriveStatusInput): StatusResult {
 
   if (gap >= input.lapseMonths) {
     if (terminationCandidate <= input.today) {
-      return { status: "IN_ACTIVE", terminationDate: terminationCandidate };
+      return { status: "IN_ACTIVE", terminationDate: terminationCandidate, projectedTerminationDate: terminationCandidate };
     }
-    return { status: "ABOUT_TO_LAPSE", terminationDate: null };
+    return { status: "ABOUT_TO_LAPSE", terminationDate: null, projectedTerminationDate: terminationCandidate };
   }
-  if (gap > input.warningMonths) return { status: "ABOUT_TO_LAPSE", terminationDate: null };
-  return { status: "ACTIVE", terminationDate: null };
+  if (gap > input.warningMonths) return { status: "ABOUT_TO_LAPSE", terminationDate: null, projectedTerminationDate: terminationCandidate };
+  return { status: "ACTIVE", terminationDate: null, projectedTerminationDate: null };
 }
 
 /**
@@ -121,6 +129,16 @@ export async function refreshMemberStatus(memberId: string, today: Date = new Da
       statusUpdatedAt: today,
     },
   });
+
+  // Single funnel point for every path that can lead to DECEASED (manual
+  // edit, claim approval, future paths): revoke the member's own login so
+  // their data is only reachable via an admin account from here on.
+  if (result.status === "DECEASED") {
+    await prisma.user.updateMany({
+      where: { memberId, disabled: false },
+      data: { disabled: true, disabledReason: "Member recorded as deceased." },
+    });
+  }
 
   return result;
 }

@@ -21,7 +21,7 @@ const ACTIVATION_TOKEN_TTL_DAYS = 7;
  * (rare, but seen in practice with pre-existing/orphaned accounts) rather
  * than letting a unique-constraint error fail the whole invite.
  */
-async function createUserSeededFromMember(member: Member) {
+export async function createUserSeededFromMember(member: Member) {
   const [emailTaken, phoneTaken] = await Promise.all([
     member.email ? prisma.user.findUnique({ where: { email: member.email } }) : null,
     member.phone ? prisma.user.findUnique({ where: { phone: member.phone } }) : null,

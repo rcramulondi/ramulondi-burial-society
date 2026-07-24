@@ -27,6 +27,10 @@ export async function checkClaimSubmissionEligibility(
 ): Promise<ClaimSubmissionCheck> {
   const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId } });
 
+  if (member.status === "DECEASED") {
+    return { eligible: false, reason: "This member is already recorded as deceased — no new claims can be filed against their policy." };
+  }
+
   if (opts.beneficiaryId) {
     const beneficiary = await prisma.beneficiary.findUnique({ where: { id: opts.beneficiaryId } });
     if (!beneficiary || beneficiary.memberId !== memberId) {

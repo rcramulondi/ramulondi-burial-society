@@ -10,8 +10,12 @@ vi.mock("@/lib/business/contributionAllocation", () => ({
   recordPaymentWithAllocation,
   getOutstandingBalance: vi.fn(),
 }));
+vi.mock("@/lib/storage/blob", () => ({
+  uploadPrivateFile: vi.fn(),
+}));
 vi.mock("@/server/permissions", () => ({
-  requireAdmin: vi.fn().mockResolvedValue({ user: { id: "admin_1", role: "ADMIN" } }),
+  requireAdmin: vi.fn().mockResolvedValue({ user: { id: "admin_1", role: "ADMIN", adminGroup: "SUPER_ADMIN" } }),
+  requireAdminGroup: vi.fn().mockResolvedValue({ user: { id: "admin_1", role: "ADMIN", adminGroup: "SUPER_ADMIN" } }),
   requireOwnMemberOrAdmin: vi.fn(),
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
