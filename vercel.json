@@ -3,10 +3,6 @@
     {
       "path": "/api/cron/update-member-status",
       "schedule": "0 0 * * *"
-    },
-    {
-      "path": "/api/cron/update-admin-access",
-      "schedule": "0 1 * * *"
     }
   ]
 }

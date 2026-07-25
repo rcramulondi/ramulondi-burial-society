@@ -50,6 +50,10 @@ export async function inviteMember(memberId: string): Promise<ActionResult<{ tok
     const session = await requireAdmin();
     const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId }, include: { user: true } });
 
+    if (member.status === "IN_ACTIVE") {
+      return { ok: false, error: "This member is inactive (lapsed) and must be reactivated before they can be granted access." };
+    }
+
     const user = member.user ?? (await createUserSeededFromMember(member));
 
     const token = crypto.randomBytes(32).toString("hex");

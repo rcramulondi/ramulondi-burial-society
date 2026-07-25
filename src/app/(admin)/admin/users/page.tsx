@@ -1,32 +1,74 @@
-import { listManageableUsers, setAdminGroupForm, revokeAdminAccessForm, unlockUserAccountForm } from "@/server/actions/userAccount";
+import {
+  listManageableUsers,
+  revokeAdminAccessForm,
+  unlockUserAccountForm,
+  reactivateMemberForm,
+} from "@/server/actions/userAccount";
+import { accountStatus } from "@/lib/accountStatus";
 import { COMMITTEE_ROLE_LABELS } from "@/lib/statusLabels";
 import InviteButton from "@/components/forms/InviteButton";
 import ActionForm from "@/components/forms/ActionForm";
-import Modal from "@/components/ui/Modal";
+import Link from "next/link";
 
-const ADMIN_GROUPS: { value: string; label: string }[] = [
+const ROLE_FILTER_OPTIONS = [
+  { value: "MEMBER", label: "Member" },
   { value: "SUPER_ADMIN", label: "Super Admin" },
   { value: "TREASURER", label: "Treasurer" },
   { value: "SECRETARY", label: "Secretary" },
-  { value: "CHAIRPERSON", label: "Chairperson (view only)" },
+  { value: "CHAIRPERSON", label: "Chairperson" },
 ];
+const STATUS_FILTER_OPTIONS = ["No account", "Active", "Locked", "Disabled"];
 
-function accountStatusLabel(user: { disabled: boolean; lockedUntil: Date | null } | null): string {
-  if (!user) return "No account";
-  if (user.disabled) return "Disabled";
-  if (user.lockedUntil && user.lockedUntil > new Date()) return "Locked";
-  return "Active";
-}
+export default async function ManageUsersPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; role?: string; status?: string; page?: string }>;
+}) {
+  const { search, role, status, page: pageParam } = await searchParams;
+  const page = Math.max(1, Number(pageParam) || 1);
+  const { users, total, pageSize } = await listManageableUsers({ search, role, status, page });
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
 
-export default async function ManageUsersPage() {
-  const users = await listManageableUsers();
+  const pageHref = (p: number) => {
+    const params = new URLSearchParams();
+    if (search) params.set("search", search);
+    if (role) params.set("role", role);
+    if (status) params.set("status", status);
+    params.set("page", String(p));
+    return `/admin/users?${params.toString()}`;
+  };
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-navy">Manage users</h1>
+      <h1 className="text-xl font-semibold text-navy">Manage users ({total})</h1>
       <p className="text-sm text-neutral-500">
-        Admin access is tied to current committee membership — Super Admin is the only exception.
+        Admin roles are assigned independently of committee membership. Inactive (lapsed) members must be
+        reactivated before they can be granted access.
       </p>
+
+      <form className="flex gap-2 text-sm flex-wrap">
+        <input
+          name="search"
+          defaultValue={search}
+          placeholder="Search name or membership no"
+          className="border border-slate-300 rounded px-3 py-2 bg-white"
+        />
+        <select name="role" defaultValue={role ?? ""} className="border border-slate-300 rounded px-3 py-2 bg-white">
+          <option value="">All roles</option>
+          {ROLE_FILTER_OPTIONS.map((r) => (
+            <option key={r.value} value={r.value}>{r.label}</option>
+          ))}
+        </select>
+        <select name="status" defaultValue={status ?? ""} className="border border-slate-300 rounded px-3 py-2 bg-white">
+          <option value="">All account statuses</option>
+          {STATUS_FILTER_OPTIONS.map((s) => (
+            <option key={s} value={s}>{s}</option>
+          ))}
+        </select>
+        <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+          Filter
+        </button>
+      </form>
 
       <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
@@ -53,30 +95,16 @@ export default async function ManageUsersPage() {
                     <span className="text-neutral-500 text-xs">Member</span>
                   )}
                 </td>
-                <td className="py-2 pr-3">{accountStatusLabel(m.user)}</td>
+                <td className="py-2 pr-3">{accountStatus(m.user)}</td>
                 <td className="py-2 pr-3">
                   <div className="flex flex-col gap-2">
-                    {!m.user && <InviteButton memberId={m.id} />}
-
-                    <Modal triggerLabel={m.user?.role === "ADMIN" ? "Change admin group" : "Grant admin access"} title={`Admin access — ${m.firstName} ${m.surname}`}>
-                      <ActionForm action={setAdminGroupForm} submitLabel="Save">
+                    {m.status === "IN_ACTIVE" ? (
+                      <ActionForm action={reactivateMemberForm} submitLabel="Reactivate member" className="flex flex-col gap-1">
                         <input type="hidden" name="memberId" value={m.id} />
-                        <label className="flex flex-col gap-1 text-sm">
-                          Admin group
-                          <select name="group" required defaultValue={m.user?.adminGroup ?? ""} className="border border-slate-300 rounded px-3 py-2 bg-white">
-                            <option value="" disabled>Select a group</option>
-                            {ADMIN_GROUPS.map((g) => (
-                              <option key={g.value} value={g.value}>{g.label}</option>
-                            ))}
-                          </select>
-                        </label>
-                        {m.committeeRole && (
-                          <p className="text-xs text-neutral-500">
-                            Current committee position ({COMMITTEE_ROLE_LABELS[m.committeeRole]}) is only eligible for a matching group.
-                          </p>
-                        )}
                       </ActionForm>
-                    </Modal>
+                    ) : (
+                      !m.user && <InviteButton memberId={m.id} />
+                    )}
 
                     {m.user?.role === "ADMIN" && (
                       <ActionForm action={revokeAdminAccessForm} submitLabel="Revoke admin access" className="flex flex-col gap-1">
@@ -93,9 +121,22 @@ export default async function ManageUsersPage() {
                 </td>
               </tr>
             ))}
+            {users.length === 0 && (
+              <tr>
+                <td colSpan={5} className="py-2 text-neutral-500">No members match this filter.</td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
+
+      {totalPages > 1 && (
+        <nav className="flex gap-2 text-sm items-center">
+          {page > 1 && <Link href={pageHref(page - 1)} className="text-accent hover:underline">&larr; Previous</Link>}
+          <span className="text-neutral-500">Page {page} of {totalPages}</span>
+          {page < totalPages && <Link href={pageHref(page + 1)} className="text-accent hover:underline">Next &rarr;</Link>}
+        </nav>
+      )}
     </div>
   );
 }
