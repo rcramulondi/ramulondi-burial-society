@@ -56,22 +56,22 @@ export default async function MemberDashboardYearPage({ params }: { params: Prom
             <thead>
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Month</th>
-                <th className="py-1 pr-3 text-right">Burial fund</th>
-                <th className="py-1 pr-3 text-right">Food fund</th>
+                <th className="py-1 pr-3 text-right hidden min-[480px]:table-cell">Burial fund</th>
+                <th className="py-1 pr-3 text-right hidden min-[480px]:table-cell">Food fund</th>
                 <th className="py-1 pr-3 text-right">Actual</th>
-                <th className="py-1 pr-3 text-right">Full rate</th>
+                <th className="py-1 pr-3 text-right hidden min-[480px]:table-cell">Full rate</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.month} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{r.monthName}</td>
-                  <td className="py-1 pr-3 text-right">R {r.burial.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right">R {r.food.toFixed(2)}</td>
-                  <td className={`py-1 pr-3 text-right ${r.belowRate ? "font-bold text-red-700" : ""}`}>
+                  <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">R {r.burial.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">R {r.food.toFixed(2)}</td>
+                  <td className={`py-1 pr-3 text-right ${r.belowRate ? "font-bold text-danger" : ""}`}>
                     R {r.actual.toFixed(2)}
                   </td>
-                  <td className="py-1 pr-3 text-right text-neutral-500">R {r.fullRate.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right text-neutral-500 hidden min-[480px]:table-cell">R {r.fullRate.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>

@@ -2,6 +2,8 @@ import { prisma } from "@/lib/prisma";
 import { listUnallocatedFunds, recordUnallocatedFundForm, allocateUnallocatedFundForm } from "@/server/actions/unallocatedFund";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
+import FieldLabel from "@/components/forms/FieldLabel";
+import FormKey from "@/components/forms/FormKey";
 import Card from "@/components/ui/Card";
 
 export default async function AdminUnallocatedFundsPage() {
@@ -21,17 +23,18 @@ export default async function AdminUnallocatedFundsPage() {
           recon is done.
         </p>
         <ActionForm action={recordUnallocatedFundForm} submitLabel="Record deposit">
-          <Field label="Description / reference number" name="reference" />
+          <FormKey />
+          <Field label="Description / reference number" name="reference" helperText="Whatever text appears on the bank statement for this deposit, if any." />
           <Field label="Date of payment" name="depositDate" type="date" required />
           <label className="flex flex-col gap-1 text-sm">
-            Type of deposit
+            <FieldLabel label="Type of deposit" required />
             <select name="depositType" required className="border border-slate-300 rounded px-3 py-2 bg-white">
               <option value="CASH">Cash</option>
               <option value="EFT">EFT</option>
             </select>
           </label>
           <Field label="Amount (R)" name="amount" type="number" required />
-          <Field label="Notes (optional)" name="notes" />
+          <Field label="Notes" name="notes" />
         </ActionForm>
       </Card>
 
@@ -42,10 +45,10 @@ export default async function AdminUnallocatedFundsPage() {
             <thead>
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Date</th>
-                <th className="py-1 pr-3">Reference</th>
-                <th className="py-1 pr-3">Type</th>
+                <th className="py-1 pr-3 hidden min-[820px]:table-cell">Reference</th>
+                <th className="py-1 pr-3 hidden min-[820px]:table-cell">Type</th>
                 <th className="py-1 pr-3 text-right">Amount</th>
-                <th className="py-1 pr-3 text-right">Allocated</th>
+                <th className="py-1 pr-3 text-right hidden min-[480px]:table-cell">Allocated</th>
                 <th className="py-1 pr-3 text-right">Remaining</th>
                 <th className="py-1 pr-3">Allocate</th>
               </tr>
@@ -54,10 +57,10 @@ export default async function AdminUnallocatedFundsPage() {
               {funds.map((f) => (
                 <tr key={f.id} className="border-b border-slate-100 align-top">
                   <td className="py-2 pr-3">{f.depositDate.toDateString()}</td>
-                  <td className="py-2 pr-3">{f.reference ?? "—"}</td>
-                  <td className="py-2 pr-3">{f.depositType}</td>
+                  <td className="py-2 pr-3 hidden min-[820px]:table-cell">{f.reference ?? "—"}</td>
+                  <td className="py-2 pr-3 hidden min-[820px]:table-cell">{f.depositType}</td>
                   <td className="py-2 pr-3 text-right">R {Number(f.amount).toFixed(2)}</td>
-                  <td className="py-2 pr-3 text-right">R {f.allocatedAmount.toFixed(2)}</td>
+                  <td className="py-2 pr-3 text-right hidden min-[480px]:table-cell">R {f.allocatedAmount.toFixed(2)}</td>
                   <td className="py-2 pr-3 text-right font-medium">R {f.remaining.toFixed(2)}</td>
                   <td className="py-2 pr-3">
                     {f.remaining > 0 ? (
@@ -66,7 +69,7 @@ export default async function AdminUnallocatedFundsPage() {
                         <ActionForm action={allocateUnallocatedFundForm} submitLabel="Allocate" className="flex flex-col gap-2 mt-2 max-w-xs">
                           <input type="hidden" name="unallocatedFundId" value={f.id} />
                           <label className="flex flex-col gap-1 text-sm">
-                            Member
+                            <FieldLabel label="Member" required />
                             <select name="memberId" required className="border border-slate-300 rounded px-3 py-2 bg-white">
                               <option value="">Select a member</option>
                               {members.map((m) => (

@@ -4,8 +4,15 @@ import {
   unlockUserAccountForm,
   reactivateMemberForm,
 } from "@/server/actions/userAccount";
-import { accountStatus } from "@/lib/accountStatus";
+import { accountStatus, type AccountStatus } from "@/lib/accountStatus";
 import { COMMITTEE_ROLE_LABELS } from "@/lib/statusLabels";
+
+const ACCOUNT_STATUS_CLASSES: Record<AccountStatus, string> = {
+  "No account": "text-slate-500 bg-slate-100 border-slate-200",
+  Active: "text-success bg-success-bg border-success/30",
+  Locked: "text-amber-700 bg-amber-50 border-amber-200",
+  Disabled: "text-danger bg-danger-bg border-danger/30",
+};
 import InviteButton from "@/components/forms/InviteButton";
 import ActionForm from "@/components/forms/ActionForm";
 import Link from "next/link";
@@ -75,8 +82,8 @@ export default async function ManageUsersPage({
           <thead>
             <tr className="text-left border-b border-slate-200">
               <th className="py-1 pr-3">Name</th>
-              <th className="py-1 pr-3">Committee position</th>
-              <th className="py-1 pr-3">Role</th>
+              <th className="py-1 pr-3 hidden min-[820px]:table-cell">Committee position</th>
+              <th className="py-1 pr-3 hidden min-[480px]:table-cell">Role</th>
               <th className="py-1 pr-3">Account status</th>
               <th className="py-1 pr-3">Actions</th>
             </tr>
@@ -85,17 +92,21 @@ export default async function ManageUsersPage({
             {users.map((m) => (
               <tr key={m.id} className="border-b border-slate-100 align-top">
                 <td className="py-2 pr-3">{m.firstName} {m.surname} <span className="text-neutral-500">({m.membershipNo})</span></td>
-                <td className="py-2 pr-3">{m.committeeRole ? COMMITTEE_ROLE_LABELS[m.committeeRole] : "—"}</td>
-                <td className="py-2 pr-3">
+                <td className="py-2 pr-3 hidden min-[820px]:table-cell">{m.committeeRole ? COMMITTEE_ROLE_LABELS[m.committeeRole] : "—"}</td>
+                <td className="py-2 pr-3 hidden min-[480px]:table-cell">
                   {m.user?.role === "ADMIN" ? (
-                    <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border bg-blue-50 text-blue-700 border-blue-200">
+                    <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border bg-primary-light text-accent border-accent/30">
                       Admin &middot; {m.user.adminGroup}
                     </span>
                   ) : (
                     <span className="text-neutral-500 text-xs">Member</span>
                   )}
                 </td>
-                <td className="py-2 pr-3">{accountStatus(m.user)}</td>
+                <td className="py-2 pr-3">
+                  <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border whitespace-nowrap ${ACCOUNT_STATUS_CLASSES[accountStatus(m.user)]}`}>
+                    {accountStatus(m.user)}
+                  </span>
+                </td>
                 <td className="py-2 pr-3">
                   <div className="flex flex-col gap-2">
                     {m.status === "IN_ACTIVE" ? (

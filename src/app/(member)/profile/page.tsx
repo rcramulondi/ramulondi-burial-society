@@ -4,6 +4,8 @@ import { uploadDocument } from "@/server/actions/document";
 import { upsertPayoutNomineeForm } from "@/server/actions/payoutNominee";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
+import FieldLabel from "@/components/forms/FieldLabel";
+import FormKey from "@/components/forms/FormKey";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 
 export default async function ProfilePage() {
@@ -44,7 +46,7 @@ export default async function ProfilePage() {
           <input type="hidden" name="memberId" value={memberId} />
           <Field label="Phone" name="phone" defaultValue={member.phone ?? ""} required />
           <Field label="Email" name="email" type="email" defaultValue={member.email ?? ""} />
-          {!member.idNumber && <Field label="ID number" name="idNumber" />}
+          {!member.idNumber && <Field label="ID number" name="idNumber" helperText="13-digit South African ID number." />}
         </ActionForm>
       </section>
 
@@ -61,8 +63,9 @@ export default async function ProfilePage() {
           <input type="hidden" name="memberId" value={memberId} />
           <input type="hidden" name="ownerType" value="MEMBER_ID_PROOF" />
           <label className="flex flex-col gap-1 text-sm">
-            File (JPEG, PNG, or PDF, max 5MB)
+            <FieldLabel label="File" required />
             <input name="file" type="file" accept=".jpg,.jpeg,.png,.pdf" required className="text-sm" />
+            <span className="text-xs text-text-muted">JPEG, PNG, or PDF, max 5MB.</span>
           </label>
         </ActionForm>
       </section>
@@ -73,6 +76,7 @@ export default async function ProfilePage() {
           Who should receive the payout on your behalf if a claim is made.
         </p>
         <ActionForm action={upsertPayoutNomineeForm} submitLabel="Save nominee">
+          <FormKey />
           <input type="hidden" name="memberId" value={memberId} />
           <Field label="First name" name="firstName" defaultValue={member.payoutNominee?.firstName ?? ""} required />
           <Field label="Surname" name="surname" defaultValue={member.payoutNominee?.surname ?? ""} required />

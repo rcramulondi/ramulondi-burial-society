@@ -74,26 +74,26 @@ export default async function DashboardYearPage({ params }: { params: Promise<{ 
             <thead>
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Month</th>
-                <th className="py-1 pr-3 text-right">Burial fund</th>
-                <th className="py-1 pr-3 text-right">Food fund</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Burial fund</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Food fund</th>
                 <th className="py-1 pr-3 text-right">Actual</th>
-                <th className="py-1 pr-3 text-right">Projected</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Projected</th>
                 <th className="py-1 pr-3 text-right">Variance</th>
-                <th className="py-1 pr-3 text-right">Contributors</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Contributors</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => (
                 <tr key={r.month} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{r.monthName}</td>
-                  <td className="py-1 pr-3 text-right">R {r.burial.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right">R {r.food.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.burial.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.food.toFixed(2)}</td>
                   <td className="py-1 pr-3 text-right">R {r.actual.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right">R {r.projected.toFixed(2)}</td>
-                  <td className={`py-1 pr-3 text-right ${r.variance < 0 ? "text-red-700" : "text-green-700"}`}>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.projected.toFixed(2)}</td>
+                  <td className={`py-1 pr-3 text-right ${r.variance < 0 ? "text-danger" : "text-success"}`}>
                     R {r.variance.toFixed(2)}
                   </td>
-                  <td className="py-1 pr-3 text-right">
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
                     {r.contributorCount} / {r.eligibleCount}
                   </td>
                 </tr>

@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { auth, signOut } from "@/lib/auth";
 import HamburgerMenu from "./HamburgerMenu";
+import InlineNav from "./InlineNav";
 import {
   LayoutDashboard,
   Users,
@@ -45,6 +46,14 @@ const ADMIN_LINKS: { href: string; label: string; icon: React.ReactNode; groups?
   { href: "/admin/audit-log", label: "Audit Log", icon: <ScrollText className={iconClass} />, groups: ["SUPER_ADMIN"] },
 ];
 
+function initialsFor(name: string | null | undefined): string {
+  if (!name) return "?";
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0]!.toUpperCase();
+  return (parts[0][0]! + parts[parts.length - 1][0]!).toUpperCase();
+}
+
 export default async function NavBar() {
   const session = await auth();
   if (!session?.user) return null;
@@ -56,25 +65,49 @@ export default async function NavBar() {
     links = [...links, { href: "/profile", label: "Profile", icon: <User className={iconClass} /> }];
   }
 
+  const signOutForm = (
+    <form
+      action={async () => {
+        "use server";
+        await signOut({ redirectTo: "/login" });
+      }}
+    >
+      <button type="submit" className="w-full text-left px-4 py-2 text-sm text-danger hover:bg-background transition-colors">
+        Sign out
+      </button>
+    </form>
+  );
+
   return (
     <header className="bg-gradient-to-r from-navy to-secondary text-white">
       <div className="mx-auto max-w-5xl flex items-center justify-between px-4 py-3 gap-4">
-        <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap">
+        <Link href="/" className="flex items-center gap-2 font-semibold whitespace-nowrap shrink-0">
           <Image src="/logo.png" alt="Ramulondi Burial Society" width={32} height={32} className="rounded-full" />
           <span className="hidden sm:inline">Ramulondi Burial Society</span>
         </Link>
-        <HamburgerMenu links={links}>
-          <form
-            action={async () => {
-              "use server";
-              await signOut({ redirectTo: "/login" });
-            }}
-          >
-            <button type="submit" className="w-full text-left px-4 py-2 text-sm text-red-700 hover:bg-background transition-colors">
-              Sign out
-            </button>
-          </form>
-        </HamburgerMenu>
+
+        <InlineNav links={links} />
+
+        <div className="flex items-center gap-4 shrink-0">
+          <div className="hidden min-[820px]:flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-gold text-navy flex items-center justify-center text-xs font-bold" title={session.user.name ?? undefined}>
+              {initialsFor(session.user.name)}
+            </div>
+            <form
+              action={async () => {
+                "use server";
+                await signOut({ redirectTo: "/login" });
+              }}
+            >
+              <button type="submit" className="text-sm font-medium text-white/85 hover:text-white transition-colors">
+                Sign out
+              </button>
+            </form>
+          </div>
+          <HamburgerMenu links={links} className="min-[820px]:hidden">
+            {signOutForm}
+          </HamburgerMenu>
+        </div>
       </div>
     </header>
   );

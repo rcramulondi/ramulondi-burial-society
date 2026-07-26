@@ -18,12 +18,12 @@ export const BENEFICIARY_STATUS_COLORS: Record<BeneficiaryStatus, StatusColor> =
 };
 
 export const STATUS_COLOR_CLASSES: Record<StatusColor, string> = {
-  green: "text-green-700 bg-green-50 border-green-200",
+  green: "text-success bg-success-bg border-success/30",
   amber: "text-amber-700 bg-amber-50 border-amber-200",
-  red: "text-red-700 bg-red-50 border-red-200",
+  red: "text-danger bg-danger-bg border-danger/30",
   grey: "text-slate-500 bg-slate-100 border-slate-200",
 };
 
 export function outstandingBalanceClass(amount: number): string {
-  return amount > 0 ? "font-bold text-red-700" : "";
+  return amount > 0 ? "font-bold text-danger" : "";
 }

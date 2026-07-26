@@ -2,7 +2,7 @@
 
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireAdminGroup, requireMemberMaintainer, requireOwnMemberOrAdmin } from "@/server/permissions";
-import { memberCreateSchema, memberUpdateSchema } from "@/lib/validation/schemas";
+import { memberCreateSchema, memberUpdateSchema, memberDraftCreateSchema } from "@/lib/validation/schemas";
 import { generateMembershipNumber } from "@/lib/business/membershipNumber";
 import { refreshMemberStatus } from "@/lib/business/memberStatus";
 import { getCurrentYearMemberFigures } from "@/lib/business/contributionAllocation";
@@ -58,6 +58,93 @@ export async function createMember(input: unknown): Promise<ActionResult<{ id: s
     return { ok: true, data: { id: member.id, membershipNo: member.membershipNo } };
   } catch (e) {
     return { ok: false, error: toSafeErrorMessage(e, "Failed to create member.") };
+  }
+}
+
+/**
+ * "Save as draft" on the Add Member wizard — relaxed validation (only name/
+ * gender/type required), no succession/status-refresh side effects since a
+ * barely-filled draft doesn't need real business-logic to run against it yet.
+ * The membership number is still generated eagerly (same as a full create)
+ * so nothing downstream ever has to special-case a member with no number.
+ */
+export async function createMemberDraft(input: unknown): Promise<ActionResult<{ id: string; membershipNo: string }>> {
+  try {
+    const session = await requireAdminGroup("SUPER_ADMIN", "SECRETARY");
+    const parsed = memberDraftCreateSchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
+    }
+    const data = parsed.data;
+
+    const membershipNo = await generateMembershipNumber(data.surname);
+
+    const member = await prisma.member.create({
+      data: {
+        membershipNo,
+        firstName: data.firstName,
+        surname: data.surname,
+        gender: data.gender,
+        type: data.type,
+        idNumber: data.idNumber,
+        phone: data.phone,
+        email: data.email,
+        dateJoined: data.dateJoined ?? new Date(),
+        packageNote: data.packageNote,
+        succeedsMemberId: data.succeedsMemberId,
+        isDraft: true,
+      },
+    });
+
+    await logAudit({
+      entityType: "Member",
+      entityId: member.id,
+      memberId: member.id,
+      action: "CREATE",
+      performedByUserId: session.user.id,
+      metadata: { draft: true },
+    });
+
+    revalidatePath("/admin/members");
+    return { ok: true, data: { id: member.id, membershipNo: member.membershipNo } };
+  } catch (e) {
+    return { ok: false, error: toSafeErrorMessage(e, "Failed to save draft.") };
+  }
+}
+
+/**
+ * Marks a draft complete — no re-validation beyond what's already stored;
+ * the admin is expected to have used the normal Member Details edit form to
+ * fill in anything missing first. Runs a status refresh once, since a
+ * completed member should get a real status computed against it going
+ * forward (a draft never had one run).
+ */
+export async function completeMemberDraft(memberId: string): Promise<ActionResult<{ id: string }>> {
+  try {
+    const session = await requireAdminGroup("SUPER_ADMIN", "SECRETARY");
+    const member = await prisma.member.findUniqueOrThrow({ where: { id: memberId } });
+
+    if (!member.isDraft) {
+      return { ok: false, error: "This member is not a draft." };
+    }
+
+    await prisma.member.update({ where: { id: memberId }, data: { isDraft: false } });
+    await refreshMemberStatus(memberId);
+
+    await logAudit({
+      entityType: "Member",
+      entityId: memberId,
+      memberId,
+      action: "UPDATE",
+      performedByUserId: session.user.id,
+      metadata: { draftCompleted: true },
+    });
+
+    revalidatePath("/admin/members");
+    revalidatePath(`/admin/members/${memberId}`);
+    return { ok: true, data: { id: memberId } };
+  } catch (e) {
+    return { ok: false, error: toSafeErrorMessage(e, "Failed to complete draft.") };
   }
 }
 
@@ -128,6 +215,19 @@ export async function updateMember(memberId: string, input: unknown): Promise<Ac
 const MEMBERS_PAGE_SIZE = 20;
 
 function membersWhere(query?: { search?: string; status?: string }) {
+  // "DRAFT" is a pseudo-status (not a real MemberStatus) — a draft member's
+  // `status` column still holds whatever the model default is, since status
+  // derivation doesn't run against barely-filled drafts. Filtering by any
+  // real status therefore excludes drafts (their status field isn't
+  // meaningful yet); filtering by "DRAFT" shows only drafts; no filter shows
+  // everything, with drafts tagged separately in the UI.
+  const statusFilter =
+    query?.status === "DRAFT"
+      ? { isDraft: true }
+      : query?.status
+        ? { status: query.status as never, isDraft: false }
+        : {};
+
   return {
     AND: [
       query?.search
@@ -139,7 +239,7 @@ function membersWhere(query?: { search?: string; status?: string }) {
             ],
           }
         : {},
-      query?.status ? { status: query.status as never } : {},
+      statusFilter,
     ],
   };
 }
@@ -219,6 +319,14 @@ export async function getMemberDetail(memberId: string) {
 
 export async function createMemberForm(formData: FormData) {
   return createMember(formDataToObject(formData));
+}
+
+export async function createMemberDraftForm(formData: FormData) {
+  return createMemberDraft(formDataToObject(formData));
+}
+
+export async function completeMemberDraftForm(formData: FormData) {
+  return completeMemberDraft(String(formData.get("memberId") ?? ""));
 }
 
 export async function updateMemberForm(formData: FormData) {

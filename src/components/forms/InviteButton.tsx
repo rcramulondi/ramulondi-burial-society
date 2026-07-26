@@ -25,7 +25,7 @@ export default function InviteButton({ memberId }: { memberId: string }) {
       >
         {isPending ? "Generating..." : "Generate activation link"}
       </button>
-      {!state.ok && <p className="text-sm text-red-700 dark:text-red-400">{state.error}</p>}
+      {!state.ok && <p className="text-sm text-danger dark:text-red-400">{state.error}</p>}
       {link && (
         <p className="text-xs break-all">
           Send this link to the member (WhatsApp/SMS/in person): <span className="underline">{link}</span>

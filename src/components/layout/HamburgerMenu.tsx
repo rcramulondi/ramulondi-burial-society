@@ -7,9 +7,11 @@ import { usePathname } from "next/navigation";
 export default function HamburgerMenu({
   links,
   children,
+  className,
 }: {
   links: { href: string; label: string; icon?: React.ReactNode }[];
   children: React.ReactNode;
+  className?: string;
 }) {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
@@ -22,7 +24,7 @@ export default function HamburgerMenu({
   }, [pathname]);
 
   return (
-    <div className="relative">
+    <div className={`relative ${className ?? ""}`}>
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { computeFullRateForMonth } from "@/lib/business/contributionAllocation";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
+import FieldLabel from "@/components/forms/FieldLabel";
+import FormKey from "@/components/forms/FormKey";
 import Card from "@/components/ui/Card";
 
 const MONTH_NAMES = [
@@ -67,10 +69,11 @@ export default async function MemberPaymentHistoryPage({
       {canRecordPayment && (
         <Card className="max-w-md">
           <h2 className="font-medium mb-4 text-navy">Record a payment</h2>
-          <ActionForm action={recordPaymentForm} submitLabel="Record payment">
+          <ActionForm action={recordPaymentForm} submitLabel="Record payment" sticky>
+            <FormKey />
             <input type="hidden" name="memberId" value={memberId} />
             <label className="flex flex-col gap-1 text-sm">
-              Category
+              <FieldLabel label="Category" required />
               <select name="category" required className="border border-slate-300 rounded px-3 py-2 bg-white">
                 <option value="MONTHLY_CONTRIBUTION">Monthly contribution (spread across outstanding months)</option>
                 <option value="JOINING_FEE">Joining fee</option>
@@ -78,10 +81,10 @@ export default async function MemberPaymentHistoryPage({
             </label>
             <Field label="Amount (R)" name="amount" type="number" required />
             <Field label="Payment date" name="paymentDate" type="date" required />
-            <Field label="Method (optional)" name="method" placeholder="Cash, EFT, ..." />
-            <Field label="Reference (optional)" name="reference" />
+            <Field label="Method" name="method" placeholder="Cash, EFT, ..." />
+            <Field label="Reference" name="reference" helperText="Bank reference or receipt number, if any." />
             <label className="flex flex-col gap-1 text-sm">
-              Proof of payment (optional)
+              <FieldLabel label="Proof of payment" />
               <input name="proofFile" type="file" accept=".jpg,.jpeg,.png,.pdf" className="text-sm" />
             </label>
           </ActionForm>
@@ -91,7 +94,7 @@ export default async function MemberPaymentHistoryPage({
       <Card>
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-medium text-navy">Monthly contributions</h2>
-          <form className="flex gap-2 text-sm">
+          <form className="flex gap-2 text-sm flex-wrap">
             <select
               name="year"
               defaultValue={year}
@@ -111,7 +114,7 @@ export default async function MemberPaymentHistoryPage({
           {monthRows.map((r, i) => (
             <div key={i} className="border border-slate-200 rounded p-2 text-center">
               <p className="text-xs text-neutral-500">{MONTH_NAMES[i]}</p>
-              <p className={r.belowRate ? "font-bold text-red-700" : r.amount > 0 ? "font-medium text-navy" : "text-neutral-400"}>
+              <p className={r.belowRate ? "font-bold text-danger" : r.amount > 0 ? "font-medium text-navy" : "text-neutral-400"}>
                 {r.amount > 0 ? `R${r.amount.toFixed(0)}` : "—"}
               </p>
               {r.paymentIds.map((paymentId) => (

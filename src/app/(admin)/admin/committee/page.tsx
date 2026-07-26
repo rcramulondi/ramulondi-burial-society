@@ -3,6 +3,7 @@ import { listCurrentCommitteeHolders, listCommitteeHistory, assignCommitteeRoleF
 import { COMMITTEE_ROLE_LABELS, COMMITTEE_ROLE_ORDER } from "@/lib/statusLabels";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
+import FieldLabel from "@/components/forms/FieldLabel";
 import Card from "@/components/ui/Card";
 import SearchSelect from "@/components/ui/SearchSelect";
 
@@ -30,7 +31,7 @@ export default async function AdminCommitteePage() {
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Role</th>
                 <th className="py-1 pr-3">Held by</th>
-                <th className="py-1 pr-3">Since</th>
+                <th className="py-1 pr-3 hidden min-[480px]:table-cell">Since</th>
                 <th className="py-1 pr-3">Assign new holder</th>
               </tr>
             </thead>
@@ -43,14 +44,14 @@ export default async function AdminCommitteePage() {
                     <td className="py-2 pr-3">
                       {holder ? `${holder.member.firstName} ${holder.member.surname}` : <span className="text-neutral-500">Vacant</span>}
                     </td>
-                    <td className="py-2 pr-3">{holder ? holder.startDate.toDateString() : "—"}</td>
+                    <td className="py-2 pr-3 hidden min-[480px]:table-cell">{holder ? holder.startDate.toDateString() : "—"}</td>
                     <td className="py-2 pr-3">
                       <details>
                         <summary className="cursor-pointer text-xs underline">Assign</summary>
                         <ActionForm action={assignCommitteeRoleForm} submitLabel="Assign" className="flex flex-col gap-2 mt-2 max-w-xs">
                           <input type="hidden" name="role" value={role} />
                           <label className="flex flex-col gap-1 text-sm">
-                            Member
+                            <FieldLabel label="Member" required />
                             <SearchSelect
                               name="memberId"
                               placeholder="Search by name or membership no"
@@ -81,7 +82,7 @@ export default async function AdminCommitteePage() {
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Role</th>
                 <th className="py-1 pr-3">Member</th>
-                <th className="py-1 pr-3">Start</th>
+                <th className="py-1 pr-3 hidden min-[480px]:table-cell">Start</th>
                 <th className="py-1 pr-3">End</th>
               </tr>
             </thead>
@@ -90,7 +91,7 @@ export default async function AdminCommitteePage() {
                 <tr key={h.id} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{COMMITTEE_ROLE_LABELS[h.role]}</td>
                   <td className="py-1 pr-3">{h.member.firstName} {h.member.surname}</td>
-                  <td className="py-1 pr-3">{h.startDate.toDateString()}</td>
+                  <td className="py-1 pr-3 hidden min-[480px]:table-cell">{h.startDate.toDateString()}</td>
                   <td className="py-1 pr-3">{h.endDate ? h.endDate.toDateString() : <span className="text-accent">Current</span>}</td>
                 </tr>
               ))}

@@ -55,13 +55,13 @@ export default async function ContributionsPage({
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <form className="flex gap-2 text-sm">
-          <select name="year" defaultValue={year} className="border rounded px-3 py-2 bg-transparent">
+        <form className="flex gap-2 text-sm flex-wrap">
+          <select name="year" defaultValue={year} className="border border-slate-300 rounded px-3 py-2 bg-white">
             {availableYears.map((y) => (
               <option key={y} value={y}>{y}</option>
             ))}
           </select>
-          <button type="submit" className="border rounded px-3 py-2">Go</button>
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">Go</button>
         </form>
         <a href={`/api/reports/contribution-statement/${memberId}/${year}`} target="_blank" className="text-sm underline">
           Download my {year} statement
@@ -75,7 +75,7 @@ export default async function ContributionsPage({
           {monthRows.map((r) => (
             <div key={r.month} className="border rounded p-2 text-center">
               <p className="text-xs text-neutral-500">{r.monthName}</p>
-              <p className={r.belowRate ? "font-bold text-red-700" : r.amount > 0 ? "font-medium" : "text-neutral-400"}>
+              <p className={r.belowRate ? "font-bold text-danger" : r.amount > 0 ? "font-medium" : "text-neutral-400"}>
                 {r.amount > 0 ? `R${r.amount.toFixed(0)}` : "—"}
               </p>
             </div>
@@ -91,7 +91,7 @@ export default async function ContributionsPage({
               <thead>
                 <tr className="text-left border-b">
                   <th className="py-1">Date</th>
-                  <th className="py-1">Category</th>
+                  <th className="py-1 hidden min-[480px]:table-cell">Category</th>
                   <th className="py-1 text-right">Burial</th>
                   <th className="py-1 text-right">Food</th>
                   <th className="py-1 text-right">Total</th>
@@ -105,7 +105,7 @@ export default async function ContributionsPage({
                   return (
                     <tr key={p.id} className="border-b border-black/5">
                       <td className="py-1">{p.paymentDate.toDateString()}</td>
-                      <td className="py-1">{p.category}</td>
+                      <td className="py-1 hidden min-[480px]:table-cell">{p.category}</td>
                       <td className="py-1 text-right">{burial > 0 ? `R ${burial.toFixed(2)}` : "—"}</td>
                       <td className="py-1 text-right">{food > 0 ? `R ${food.toFixed(2)}` : "—"}</td>
                       <td className="py-1 text-right font-medium">R {Number(p.amount).toFixed(2)}</td>

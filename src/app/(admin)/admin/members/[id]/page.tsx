@@ -1,10 +1,12 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { getMemberDetail, updateMemberForm } from "@/server/actions/member";
+import { getMemberDetail, updateMemberForm, completeMemberDraftForm } from "@/server/actions/member";
 import { uploadDocument } from "@/server/actions/document";
 import { listBeneficiaries, reallocateBeneficiaryForm } from "@/server/actions/beneficiary";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
+import FieldLabel from "@/components/forms/FieldLabel";
+import FormKey from "@/components/forms/FormKey";
 import InviteButton from "@/components/forms/InviteButton";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
@@ -34,6 +36,22 @@ export default async function AdminMemberDetailPage({
 
   return (
     <div className="flex flex-col gap-8">
+      {member.isDraft && (
+        <Card className="max-w-lg border-amber-200 bg-amber-50">
+          <div className="flex items-center justify-between flex-wrap gap-3">
+            <div>
+              <p className="text-sm font-medium text-navy">This member is a draft</p>
+              <p className="text-xs text-text-muted">Fill in anything missing using Edit below, then mark it complete.</p>
+            </div>
+            {canMaintain && (
+              <ActionForm action={completeMemberDraftForm} submitLabel="Mark as complete" className="flex flex-col gap-1">
+                <input type="hidden" name="memberId" value={member.id} />
+              </ActionForm>
+            )}
+          </div>
+        </Card>
+      )}
+
       {(member.succeedsMember || member.succeededByMember) && (
         <Card className="max-w-lg">
           <h2 className="font-medium mb-2 text-navy">Succession</h2>
@@ -104,13 +122,19 @@ export default async function AdminMemberDetailPage({
 
         {isEditing ? (
           <>
-            <ActionForm action={updateMemberForm} submitLabel="Save changes">
+            <ActionForm action={updateMemberForm} submitLabel="Save changes" sticky>
+              <FormKey />
               <input type="hidden" name="memberId" value={member.id} />
               <Field label="First name" name="firstName" defaultValue={member.firstName} required />
               <Field label="Surname" name="surname" defaultValue={member.surname} required />
               <Field label="Phone" name="phone" defaultValue={member.phone ?? ""} required />
               <Field label="Email" name="email" type="email" defaultValue={member.email ?? ""} />
-              <Field label="ID number" name="idNumber" defaultValue={member.idNumber ?? ""} />
+              <Field
+                label="ID number"
+                name="idNumber"
+                defaultValue={member.idNumber ?? ""}
+                helperText="13-digit South African ID number."
+              />
               {canEditDeceasedDate ? (
                 <Field label="Date deceased (leave blank if alive)" name="deceasedDate" type="date" defaultValue={member.deceasedDate?.toISOString().slice(0, 10) ?? ""} />
               ) : (
@@ -157,12 +181,15 @@ export default async function AdminMemberDetailPage({
         <ActionForm action={uploadDocument} submitLabel="Upload document" className="flex flex-col gap-2 max-w-sm">
           <input type="hidden" name="memberId" value={member.id} />
           <label className="flex flex-col gap-1 text-sm">
-            Document type
+            <FieldLabel label="Document type" required />
             <select name="ownerType" required className="border border-slate-300 rounded px-3 py-2 bg-white">
               <option value="MEMBER_ID_PROOF">Member ID proof</option>
             </select>
           </label>
-          <input name="file" type="file" accept=".jpg,.jpeg,.png,.pdf" required className="text-sm" />
+          <label className="flex flex-col gap-1 text-sm">
+            <FieldLabel label="File" required />
+            <input name="file" type="file" accept=".jpg,.jpeg,.png,.pdf" required className="text-sm" />
+          </label>
         </ActionForm>
       </Card>
     </div>
@@ -197,7 +224,7 @@ async function DeceasedBeneficiariesSection({ memberId }: { memberId: string }) 
               <ActionForm action={reallocateBeneficiaryForm} submitLabel="Reallocate">
                 <input type="hidden" name="beneficiaryId" value={b.id} />
                 <label className="flex flex-col gap-1 text-sm">
-                  New member
+                  <FieldLabel label="New member" required />
                   <SearchSelect name="newMemberId" options={memberOptions} placeholder="Search members" required />
                 </label>
               </ActionForm>

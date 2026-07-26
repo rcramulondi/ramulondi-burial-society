@@ -31,7 +31,7 @@ export default async function AdminMembersPage({
         </Link>
       </div>
 
-      <form className="flex gap-2 text-sm">
+      <form className="flex gap-2 text-sm flex-wrap">
         <input
           name="search"
           defaultValue={search}
@@ -43,6 +43,7 @@ export default async function AdminMembersPage({
           {Object.entries(STATUS_LABELS).map(([k, v]) => (
             <option key={k} value={k}>{v}</option>
           ))}
+          <option value="DRAFT">Draft</option>
         </select>
         <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
           Filter
@@ -55,13 +56,13 @@ export default async function AdminMembersPage({
             <tr className="text-left border-b border-slate-200">
               <th className="py-1 pr-3">Membership No</th>
               <th className="py-1 pr-3">Name</th>
-              <th className="py-1 pr-3">Type</th>
+              <th className="py-1 pr-3 hidden min-[820px]:table-cell">Type</th>
               <th className="py-1 pr-3">Status</th>
-              <th className="py-1 pr-3">Phone</th>
-              <th className="py-1 pr-3 text-right">Beneficiaries</th>
-              <th className="py-1 pr-3 text-right">Contributions ({new Date().getFullYear()})</th>
-              <th className="py-1 pr-3 text-right">Outstanding ({new Date().getFullYear()})</th>
-              <th className="py-1 pr-3">Date of termination</th>
+              <th className="py-1 pr-3 hidden min-[820px]:table-cell">Phone</th>
+              <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Beneficiaries</th>
+              <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Contributions ({new Date().getFullYear()})</th>
+              <th className="py-1 pr-3 text-right hidden min-[480px]:table-cell">Outstanding ({new Date().getFullYear()})</th>
+              <th className="py-1 pr-3 hidden min-[480px]:table-cell">Date of termination</th>
             </tr>
           </thead>
           <tbody>
@@ -71,17 +72,25 @@ export default async function AdminMembersPage({
                   <Link href={`/admin/members/${m.id}`} className="text-accent hover:underline">{m.membershipNo}</Link>
                 </td>
                 <td className="py-1 pr-3">{m.firstName} {m.surname}</td>
-                <td className="py-1 pr-3">{m.type}</td>
-                <td className="py-1 pr-3"><MemberStatusBadge status={m.status} /></td>
-                <td className="py-1 pr-3">{m.phone ?? "—"}</td>
-                <td className="py-1 pr-3 text-right">{m.beneficiaryCount}</td>
-                <td className="py-1 pr-3 text-right">R {m.contributionsThisYear.toFixed(2)}</td>
-                <td className={`py-1 pr-3 text-right ${outstandingBalanceClass(m.outstandingThisYear)}`}>R {m.outstandingThisYear.toFixed(2)}</td>
+                <td className="py-1 pr-3 hidden min-[820px]:table-cell">{m.type}</td>
                 <td className="py-1 pr-3">
+                  {m.isDraft ? (
+                    <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border text-amber-700 bg-amber-50 border-amber-200 whitespace-nowrap">
+                      Draft
+                    </span>
+                  ) : (
+                    <MemberStatusBadge status={m.status} />
+                  )}
+                </td>
+                <td className="py-1 pr-3 hidden min-[820px]:table-cell">{m.phone ?? "—"}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{m.beneficiaryCount}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {m.contributionsThisYear.toFixed(2)}</td>
+                <td className={`py-1 pr-3 text-right hidden min-[480px]:table-cell ${outstandingBalanceClass(m.outstandingThisYear)}`}>R {m.outstandingThisYear.toFixed(2)}</td>
+                <td className="py-1 pr-3 hidden min-[480px]:table-cell">
                   {m.status === "IN_ACTIVE" && m.terminationDate ? (
                     m.terminationDate.toDateString()
                   ) : m.status === "ABOUT_TO_LAPSE" && m.projectedTerminationDate ? (
-                    <span className="font-bold text-red-700">{m.projectedTerminationDate.toDateString()}</span>
+                    <span className="font-bold text-danger">{m.projectedTerminationDate.toDateString()}</span>
                   ) : (
                     "—"
                   )}

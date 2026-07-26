@@ -86,7 +86,7 @@ export default async function AdminReportsPage({
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Date</th>
                 <th className="py-1 pr-3">Member</th>
-                <th className="py-1 pr-3">Category</th>
+                <th className="py-1 pr-3 hidden min-[480px]:table-cell">Category</th>
                 <th className="py-1 pr-3 text-right">Amount</th>
                 <th className="py-1 pr-3"></th>
               </tr>
@@ -100,7 +100,7 @@ export default async function AdminReportsPage({
                       {p.member.firstName} {p.member.surname}
                     </Link>
                   </td>
-                  <td className="py-1 pr-3">{p.category}</td>
+                  <td className="py-1 pr-3 hidden min-[480px]:table-cell">{p.category}</td>
                   <td className="py-1 pr-3 text-right">R {Number(p.amount).toFixed(2)}</td>
                   <td className="py-1 pr-3">
                     <a href={`/api/reports/proof-of-payment/${p.id}`} target="_blank" className="text-accent hover:underline">

@@ -45,7 +45,7 @@ export default async function IncomeStatementPage({
           <Link href="/admin/reports" className="text-sm text-accent hover:underline">&larr; Back to reports</Link>
           <h1 className="text-xl font-semibold text-navy mt-2">Income vs. expenditure ({year})</h1>
         </div>
-        <form className="flex gap-2 text-sm">
+        <form className="flex gap-2 text-sm flex-wrap">
           <select name="year" defaultValue={year} className="border border-slate-300 rounded px-3 py-2 bg-white">
             {yearOptions.map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -67,11 +67,11 @@ export default async function IncomeStatementPage({
             <thead>
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Month</th>
-                <th className="py-1 pr-3 text-right">Burial contributions</th>
-                <th className="py-1 pr-3 text-right">Food contributions</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Burial contributions</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Food contributions</th>
                 <th className="py-1 pr-3 text-right">Total income</th>
-                <th className="py-1 pr-3 text-right">Burial payouts</th>
-                <th className="py-1 pr-3 text-right">Other expenses</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Burial payouts</th>
+                <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Other expenses</th>
                 <th className="py-1 pr-3 text-right">Total expenditure</th>
                 <th className="py-1 pr-3 text-right">Net</th>
               </tr>
@@ -80,30 +80,30 @@ export default async function IncomeStatementPage({
               {rows.map((r) => (
                 <tr key={r.month} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{MONTH_NAMES[r.month - 1]}</td>
-                  <td className="py-1 pr-3 text-right">R {r.burialIncome.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right">R {r.foodIncome.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.burialIncome.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.foodIncome.toFixed(2)}</td>
                   <td className="py-1 pr-3 text-right">R {r.totalIncome.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right">
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
                     <Link href={`/admin/claims?year=${year}`} className="text-accent hover:underline">R {r.burialExpenditure.toFixed(2)}</Link>
                   </td>
-                  <td className="py-1 pr-3 text-right">
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
                     <Link href="/admin/expenses" className="text-accent hover:underline">R {r.otherExpenses.toFixed(2)}</Link>
                   </td>
                   <td className="py-1 pr-3 text-right">R {r.totalExpenditure.toFixed(2)}</td>
-                  <td className={`py-1 pr-3 text-right ${r.net >= 0 ? "text-green-700" : "text-red-700"}`}>R {r.net.toFixed(2)}</td>
+                  <td className={`py-1 pr-3 text-right ${r.net >= 0 ? "text-success" : "text-danger"}`}>R {r.net.toFixed(2)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-300 font-medium">
                 <td className="py-1 pr-3">Total</td>
-                <td className="py-1 pr-3 text-right">R {totals.burialIncome.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right">R {totals.foodIncome.toFixed(2)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.burialIncome.toFixed(2)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.foodIncome.toFixed(2)}</td>
                 <td className="py-1 pr-3 text-right">R {totals.totalIncome.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right">R {totals.burialExpenditure.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right">R {totals.otherExpenses.toFixed(2)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.burialExpenditure.toFixed(2)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.otherExpenses.toFixed(2)}</td>
                 <td className="py-1 pr-3 text-right">R {totals.totalExpenditure.toFixed(2)}</td>
-                <td className={`py-1 pr-3 text-right ${totals.net >= 0 ? "text-green-700" : "text-red-700"}`}>R {totals.net.toFixed(2)}</td>
+                <td className={`py-1 pr-3 text-right ${totals.net >= 0 ? "text-success" : "text-danger"}`}>R {totals.net.toFixed(2)}</td>
               </tr>
             </tfoot>
           </table>

@@ -1,9 +1,13 @@
 import { prisma } from "@/lib/prisma";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
+import FieldLabel from "@/components/forms/FieldLabel";
+import FormKey from "@/components/forms/FormKey";
 import SearchSelect from "@/components/ui/SearchSelect";
 import BankNameField from "@/components/forms/BankNameField";
 import { submitClaimForm } from "@/server/actions/claim";
+
+const sectionTitleClass = "text-xs font-bold uppercase tracking-wide text-primary-dark mt-2 pb-1 border-b border-border";
 
 export default async function NewClaimPage() {
   const [members, beneficiaries] = await Promise.all([
@@ -29,36 +33,39 @@ export default async function NewClaimPage() {
         before approval — approval itself is what marks the member or beneficiary as deceased. A
         death certificate is required to submit.
       </p>
-      <ActionForm action={submitClaimForm} submitLabel="Submit claim" onSuccessMessage="Claim submitted for review.">
+      <ActionForm action={submitClaimForm} submitLabel="Submit claim" onSuccessMessage="Claim submitted for review." sticky>
+        <FormKey />
+        <h2 className={sectionTitleClass}>Who died</h2>
         <label className="flex flex-col gap-1 text-sm">
-          Member
+          <FieldLabel label="Member" required />
           <SearchSelect name="memberId" options={memberOptions} placeholder="Search by name or membership no" required />
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Beneficiary (leave blank if the deceased is the member)
+          <FieldLabel label="Beneficiary" />
           <SearchSelect name="beneficiaryId" options={beneficiaryOptions} placeholder="Search by name or reference no" />
+          <span className="text-xs text-text-muted">Leave blank if the deceased is the member themself, not one of their beneficiaries.</span>
         </label>
         <Field label="Date deceased" name="dateDeceased" type="date" required />
         <label className="flex flex-col gap-1 text-sm">
-          Place of burial
+          <FieldLabel label="Place of burial" required />
           <select name="placeOfBurial" required className="border border-slate-300 rounded px-3 py-2 bg-white">
             <option value="KHALAVHA">Khalavha</option>
             <option value="OTHER">Community site (other)</option>
           </select>
         </label>
         <label className="flex flex-col gap-1 text-sm">
-          Death certificate
+          <FieldLabel label="Death certificate" required />
           <input name="deathCertificate" type="file" accept=".jpg,.jpeg,.png,.pdf" required className="text-sm" />
         </label>
 
-        <h2 className="font-medium mt-2">Payout recipient</h2>
+        <h2 className={sectionTitleClass}>Payout recipient</h2>
         <Field label="First name" name="payoutRecipientName" required />
         <Field label="Surname" name="payoutRecipientSurname" required />
-        <Field label="ID number" name="payoutRecipientIdNumber" required />
+        <Field label="ID number" name="payoutRecipientIdNumber" required helperText="13-digit South African ID number." />
         <Field label="Phone" name="payoutRecipientPhone" required placeholder="0821234567" />
-        <Field label="Email (optional)" name="payoutRecipientEmail" type="email" />
+        <Field label="Email" name="payoutRecipientEmail" type="email" />
 
-        <h2 className="font-medium mt-2">Banking details</h2>
+        <h2 className={sectionTitleClass}>Banking details</h2>
         <BankNameField />
         <Field label="Account number" name="bankAccountNumber" required />
       </ActionForm>

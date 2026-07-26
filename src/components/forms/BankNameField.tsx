@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import FieldLabel from "./FieldLabel";
 
 const TOP_BANKS = ["Standard Bank", "ABSA", "FNB", "Nedbank", "Capitec"];
 const OTHER = "OTHER";
@@ -12,7 +13,7 @@ export default function BankNameField({ defaultValue }: { defaultValue?: string 
   return (
     <div className="flex flex-col gap-1 text-sm">
       <label className="flex flex-col gap-1">
-        Bank name
+        <FieldLabel label="Bank name" required />
         <select
           value={selected}
           onChange={(e) => setSelected(e.target.value)}

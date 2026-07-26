@@ -81,7 +81,7 @@ export default async function AnalyticsDashboardPage({
           <Link href="/admin/reports" className="text-sm text-accent hover:underline">&larr; Back to reports</Link>
           <h1 className="text-xl font-semibold text-navy mt-2">Analytics dashboard</h1>
         </div>
-        <form className="flex gap-2 text-sm">
+        <form className="flex gap-2 text-sm flex-wrap">
           <select name="year" defaultValue={year} className="border border-slate-300 rounded px-3 py-2 bg-white">
             {yearOptions.map((y) => (
               <option key={y} value={y}>{y}</option>
@@ -102,7 +102,7 @@ export default async function AnalyticsDashboardPage({
         </Card>
         <Card>
           <p className="text-xs text-neutral-500">Net position ({year})</p>
-          <p className={`text-lg font-semibold mt-1 ${annualSummary.net >= 0 ? "text-green-700" : "text-red-700"}`}>
+          <p className={`text-lg font-semibold mt-1 ${annualSummary.net >= 0 ? "text-success" : "text-danger"}`}>
             R {annualSummary.net.toFixed(2)}
           </p>
         </Card>
@@ -142,7 +142,7 @@ export default async function AnalyticsDashboardPage({
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Year</th>
                 {(Object.keys(STATUS_LABELS) as MemberStatus[]).map((s) => (
-                  <th key={s} className="py-1 pr-3 text-right">{STATUS_LABELS[s]}</th>
+                  <th key={s} className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{STATUS_LABELS[s]}</th>
                 ))}
                 <th className="py-1 pr-3 text-right">Total</th>
               </tr>
@@ -154,7 +154,7 @@ export default async function AnalyticsDashboardPage({
                   <tr key={row.year} className="border-b border-slate-100">
                     <td className="py-1 pr-3">{row.year}</td>
                     {(Object.keys(STATUS_LABELS) as MemberStatus[]).map((s) => (
-                      <td key={s} className="py-1 pr-3 text-right">{row[STATUS_LABELS[s]]}</td>
+                      <td key={s} className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{row[STATUS_LABELS[s]]}</td>
                     ))}
                     <td className="py-1 pr-3 text-right font-medium">{total}</td>
                   </tr>

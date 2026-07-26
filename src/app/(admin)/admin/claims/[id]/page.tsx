@@ -47,7 +47,7 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
         <dt className="text-neutral-500">Bank</dt>
         <dd>{claim.bankName} &middot; {claim.bankAccountNumber}</dd>
         <dt className="text-neutral-500">Outstanding balance</dt>
-        <dd className={outstanding > 0 ? "text-red-700 dark:text-red-400 font-medium" : ""}>
+        <dd className={outstanding > 0 ? "text-danger dark:text-red-400 font-medium" : ""}>
           R {outstanding.toFixed(2)}
         </dd>
       </dl>
@@ -84,7 +84,7 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
         <section>
           <h2 className="font-medium mb-2">Record payout</h2>
           {outstanding > 0 && (
-            <p className="text-sm text-red-700 dark:text-red-400 mb-2">
+            <p className="text-sm text-danger dark:text-red-400 mb-2">
               Payout is blocked while an outstanding balance remains — settle it first.
             </p>
           )}
@@ -95,7 +95,7 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
             <input type="hidden" name="claimId" value={claim.id} />
             <Field label="Paid date" name="paidDate" type="date" required />
             <Field label="Paid to" name="paidTo" defaultValue={`${claim.payoutRecipientName} ${claim.payoutRecipientSurname}`} required />
-            <Field label="Notes (optional)" name="notes" />
+            <Field label="Notes" name="notes" />
           </ActionForm>
         </section>
       )}

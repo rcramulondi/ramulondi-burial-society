@@ -61,6 +61,26 @@ export const memberUpdateSchema = memberCreateSchema.partial().extend({
   deceasedDate: z.coerce.date().optional().nullable(),
 });
 
+/**
+ * Relaxed schema for "Save as draft" on the Add Member wizard — only name,
+ * gender, and type are required (matching what's already mandatory at the DB
+ * level); dateJoined defaults to today when omitted, and even phone (normally
+ * app-policy-required on the strict path) is optional here, since the whole
+ * point of a draft is being able to save with less than everything on hand.
+ */
+export const memberDraftCreateSchema = z.object({
+  firstName: z.string().trim().min(1, "First name is required."),
+  surname: z.string().trim().min(1, "Surname is required."),
+  gender: genderSchema,
+  type: membershipTypeSchema,
+  idNumber: optionalSaIdSchema,
+  phone: optionalSaPhoneSchema,
+  email: optionalEmailSchema,
+  dateJoined: z.coerce.date().optional(),
+  packageNote: z.string().trim().optional(),
+  succeedsMemberId: z.string().trim().optional(),
+});
+
 export const beneficiaryCreateSchema = z.object({
   memberId: z.string().min(1),
   firstName: z.string().trim().min(1, "First name is required."),

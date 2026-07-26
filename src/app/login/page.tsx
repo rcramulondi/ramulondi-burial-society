@@ -2,6 +2,7 @@ import { signIn } from "@/lib/auth";
 import { AuthError } from "next-auth";
 import { redirect } from "next/navigation";
 import Image from "next/image";
+import FieldLabel from "@/components/forms/FieldLabel";
 
 export default async function LoginPage({
   searchParams,
@@ -35,22 +36,23 @@ export default async function LoginPage({
           <h1 className="text-xl font-semibold text-navy">Sign in</h1>
         </div>
         {error && (
-          <p className="mb-4 text-sm text-red-700 border border-red-300 bg-red-50 rounded p-2">
+          <p className="mb-4 text-sm text-danger border border-danger/30 bg-danger-bg rounded p-2">
             {error}
           </p>
         )}
         <form action={login} className="flex flex-col gap-4">
           <label className="flex flex-col gap-1 text-sm">
-            Email or phone
+            <FieldLabel label="Email or phone" required />
             <input
               name="identifier"
               type="text"
               required
+              placeholder="e.g. 082 123 4567 or name@email.com"
               className="border border-slate-300 rounded px-3 py-2 bg-white focus:outline-none focus:ring-2 focus:ring-accent focus:border-accent"
             />
           </label>
           <label className="flex flex-col gap-1 text-sm">
-            Password
+            <FieldLabel label="Password" required />
             <input
               name="password"
               type="password"

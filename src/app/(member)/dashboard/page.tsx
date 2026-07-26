@@ -53,12 +53,13 @@ export default async function MemberDashboardPage() {
 
       <section>
         <h2 className="font-medium mb-2">Contributions by year</h2>
+        <div className="overflow-x-auto">
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="text-left border-b">
               <th className="py-1">Year</th>
-              <th className="py-1">Burial fund</th>
-              <th className="py-1">Food fund</th>
+              <th className="py-1 hidden min-[480px]:table-cell">Burial fund</th>
+              <th className="py-1 hidden min-[480px]:table-cell">Food fund</th>
               <th className="py-1">Total</th>
             </tr>
           </thead>
@@ -68,8 +69,8 @@ export default async function MemberDashboardPage() {
                 <td className="py-1">
                   <Link href={`/dashboard/year/${y.year}`} className="text-accent hover:underline">{y.year}</Link>
                 </td>
-                <td className="py-1">R {y.byFund.BURIAL.toFixed(2)}</td>
-                <td className="py-1">R {y.byFund.FOOD.toFixed(2)}</td>
+                <td className="py-1 hidden min-[480px]:table-cell">R {y.byFund.BURIAL.toFixed(2)}</td>
+                <td className="py-1 hidden min-[480px]:table-cell">R {y.byFund.FOOD.toFixed(2)}</td>
                 <td className="py-1 font-medium">R {y.total.toFixed(2)}</td>
               </tr>
             ))}
@@ -82,6 +83,7 @@ export default async function MemberDashboardPage() {
             )}
           </tbody>
         </table>
+        </div>
       </section>
 
       <section>

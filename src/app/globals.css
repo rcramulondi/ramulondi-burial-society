@@ -1,11 +1,20 @@
 @import "tailwindcss";
 
 :root {
-  --color-navy: #073b4c;
-  --color-background: #f1faee;
+  --color-navy: #0b2a4a;
+  --color-background: #f4f8fc;
   --color-card: #ffffff;
-  --color-accent: #52b788;
-  --color-secondary: #6fa6d0;
+  --color-accent: #1d5fbf;
+  --color-secondary: #4a8fe0;
+  --color-primary-dark: #164a97;
+  --color-primary-light: #e8f1fc;
+  --color-gold: #e3a008;
+  --color-success: #1e8e5a;
+  --color-success-bg: #e7f6ee;
+  --color-danger: #dc2626;
+  --color-danger-bg: #fdecec;
+  --color-text-muted: #5b6b7f;
+  --color-border: #e1e9f2;
 }
 
 @theme inline {
@@ -14,12 +23,20 @@
   --color-card: var(--color-card);
   --color-accent: var(--color-accent);
   --color-secondary: var(--color-secondary);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-primary-dark: var(--color-primary-dark);
+  --color-primary-light: var(--color-primary-light);
+  --color-gold: var(--color-gold);
+  --color-success: var(--color-success);
+  --color-success-bg: var(--color-success-bg);
+  --color-danger: var(--color-danger);
+  --color-danger-bg: var(--color-danger-bg);
+  --color-text-muted: var(--color-text-muted);
+  --color-border: var(--color-border);
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
 }
 
 body {
   background: var(--color-background);
   color: var(--color-navy);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
 }

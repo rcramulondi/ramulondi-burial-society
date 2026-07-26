@@ -171,6 +171,7 @@ model Member {
   status             MemberStatus    @default(ACTIVE)
   statusUpdatedAt    DateTime?
   packageNote        String?
+  isDraft            Boolean         @default(false)
   createdAt          DateTime        @default(now())
   updatedAt          DateTime        @updatedAt
 
