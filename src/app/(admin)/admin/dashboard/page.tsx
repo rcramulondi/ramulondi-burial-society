@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { STATUS_LABELS } from "@/lib/statusLabels";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 import { projectedForYear, getActiveCountsAndRates } from "@/lib/business/projectedContributions";
+import { getMemberStatusCountsAsOf } from "@/lib/business/memberStatus";
 import { listUnallocatedFunds } from "@/server/actions/unallocatedFund";
 import MemberStatusPieChart from "@/components/charts/MemberStatusPieChart";
 import Card from "@/components/ui/Card";
@@ -30,8 +31,26 @@ export default async function AdminDashboardPage({
     listUnallocatedFunds(),
   ]);
 
-  const statusMap = Object.fromEntries(statusCounts.map((s) => [s.status, s._count])) as Record<MemberStatus, number>;
-  const totalMembers = statusCounts.reduce((sum, s) => sum + s._count, 0);
+  const liveStatusMap = Object.fromEntries(statusCounts.map((s) => [s.status, s._count])) as Record<MemberStatus, number>;
+
+  // Member-status tiles/pie chart: for the current year or the consolidated
+  // (all-time) view, "as of now" IS the answer, so the live snapshot is used
+  // directly. For a past year, reconstruct the breakdown as it stood at the
+  // end of that year from MemberStatusHistory — falling back to the live
+  // snapshot (with a note) if history doesn't go back that far yet.
+  const isCurrentSnapshot = isConsolidated || selectedYear === currentYear;
+  let statusMap = liveStatusMap;
+  let statusNote: string | null = null;
+  if (!isCurrentSnapshot) {
+    const cutoff = new Date(Date.UTC(selectedYear + 1, 0, 1));
+    const { counts, hasFullHistory } = await getMemberStatusCountsAsOf(cutoff);
+    if (hasFullHistory) {
+      statusMap = counts;
+    } else {
+      statusNote = `Historical status tracking doesn't go back far enough to reconstruct ${selectedYear} yet — showing today's status instead.`;
+    }
+  }
+  const totalMembers = (Object.keys(STATUS_LABELS) as MemberStatus[]).reduce((sum, s) => sum + (statusMap[s] ?? 0), 0);
 
   const pieData = (Object.keys(STATUS_LABELS) as MemberStatus[]).map((status) => {
     const count = statusMap[status] ?? 0;
@@ -59,9 +78,8 @@ export default async function AdminDashboardPage({
   };
 
   // Financial tiles: "this year" or "all years" (consolidated) based on the
-  // selector. Member-status tiles/pie chart and Unallocated Funds are
-  // current-snapshot/running-balance figures by nature, not year-bound, so
-  // they're unaffected by this selector.
+  // selector. Unallocated Funds is a running balance by nature, not
+  // year-bound, so it's unaffected by this selector.
   const totalCollected = isConsolidated
     ? fundTotals.reduce((sum, f) => sum + Number(f._sum.amount ?? 0), 0)
     : totalCollectedByYear(selectedYear);
@@ -141,8 +159,11 @@ export default async function AdminDashboardPage({
       </div>
 
       <Card>
-        <h2 className="font-medium mb-2 text-navy">Members by status</h2>
+        <h2 className="font-medium mb-2 text-navy">Members by status ({isCurrentSnapshot ? "today" : selectionLabel})</h2>
         <p className="text-xs text-neutral-500 mb-2">Click a status tile or a pie slice to see that list of members.</p>
+        {statusNote && (
+          <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded px-2 py-1 mb-2">{statusNote}</p>
+        )}
         <MemberStatusPieChart data={pieData} />
       </Card>
 

@@ -130,6 +130,17 @@ export async function refreshMemberStatus(memberId: string, today: Date = new Da
     },
   });
 
+  // Log a history row on every real transition, plus once as a baseline the
+  // first time this member is ever seen here (existingHistoryCount === 0) —
+  // that baseline is what lets pre-existing members backfill automatically
+  // the next time the daily cron touches them, with no manual data migration.
+  const existingHistoryCount = await prisma.memberStatusHistory.count({ where: { memberId } });
+  if (existingHistoryCount === 0 || result.status !== member.status) {
+    await prisma.memberStatusHistory.create({
+      data: { memberId, status: result.status, changedAt: today },
+    });
+  }
+
   // Single funnel point for every path that can lead to DECEASED (manual
   // edit, claim approval, future paths): revoke the member's own login so
   // their data is only reachable via an admin account from here on.
@@ -149,4 +160,54 @@ export async function refreshAllMemberStatuses(today: Date = new Date()): Promis
     await refreshMemberStatus(id, today);
   }
   return members.length;
+}
+
+export type StatusCountsAsOf = {
+  counts: Record<MemberStatus, number>;
+  /**
+   * False when at least one member who existed by `cutoff` has no
+   * MemberStatusHistory row that old — i.e. status tracking didn't go back
+   * far enough yet to reconstruct that date. Callers should fall back to the
+   * live snapshot and say so, rather than present partial counts as fact.
+   */
+  hasFullHistory: boolean;
+};
+
+/**
+ * Reconstructs the member-status breakdown as of a past date from
+ * MemberStatusHistory, rather than the live (current) Member.status column —
+ * needed so a year selector can show what the breakdown actually was for a
+ * given year instead of always showing today's snapshot.
+ */
+export async function getMemberStatusCountsAsOf(cutoff: Date): Promise<StatusCountsAsOf> {
+  const counts: Record<MemberStatus, number> = { ACTIVE: 0, ABOUT_TO_LAPSE: 0, IN_ACTIVE: 0, DECEASED: 0 };
+
+  const members = await prisma.member.findMany({
+    where: { dateJoined: { lt: cutoff } },
+    select: { id: true },
+  });
+  if (members.length === 0) return { counts, hasFullHistory: true };
+
+  const histories = await prisma.memberStatusHistory.findMany({
+    where: { memberId: { in: members.map((m) => m.id) }, changedAt: { lt: cutoff } },
+    orderBy: { changedAt: "desc" },
+    select: { memberId: true, status: true },
+  });
+
+  const latestByMember = new Map<string, MemberStatus>();
+  for (const h of histories) {
+    if (!latestByMember.has(h.memberId)) latestByMember.set(h.memberId, h.status);
+  }
+
+  let hasFullHistory = true;
+  for (const m of members) {
+    const status = latestByMember.get(m.id);
+    if (status) {
+      counts[status]++;
+    } else {
+      hasFullHistory = false;
+    }
+  }
+
+  return { counts, hasFullHistory };
 }

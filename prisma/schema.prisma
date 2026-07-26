@@ -185,6 +185,7 @@ model Member {
   committeeTerms     CommitteeTerm[]
   expensesSpent      Expense[]
   unallocatedFundAllocations UnallocatedFundAllocation[]
+  statusHistory      MemberStatusHistory[]
 
   // A spouse/partner taking over a deceased member's policy is registered as
   // an entirely new, independent Member record — this is a pure reference
@@ -196,6 +197,22 @@ model Member {
 
   @@index([status])
   @@index([surname])
+}
+
+// One row per status transition, so year-based reports can reconstruct
+// "what was this member's status as of date X" instead of only ever seeing
+// the current live value. refreshMemberStatus writes a row here whenever the
+// derived status changes, plus a one-time baseline row the first time it
+// runs for a member (so pre-existing members backfill automatically via the
+// daily status-refresh cron rather than needing a manual data migration).
+model MemberStatusHistory {
+  id        String       @id @default(cuid())
+  memberId  String
+  member    Member       @relation(fields: [memberId], references: [id])
+  status    MemberStatus
+  changedAt DateTime     @default(now())
+
+  @@index([memberId, changedAt])
 }
 
 model Beneficiary {
