@@ -1,10 +1,11 @@
 "use client";
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
+import { CHART_COLORS } from "@/lib/chartColors";
 
 const COLORS: Record<string, string> = {
-  "Burial payouts": "#073b4c",
-  "Other expenses": "#d97706",
+  "Burial payouts": CHART_COLORS.primary,
+  "Other expenses": CHART_COLORS.sky,
 };
 
 export default function ExpenditureSplitPieChart({

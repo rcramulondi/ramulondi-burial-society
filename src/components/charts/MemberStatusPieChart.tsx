@@ -2,12 +2,15 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { useRouter } from "next/navigation";
+import { STATUS_CHART_COLORS } from "@/lib/chartColors";
 
+// Matches MEMBER_STATUS_COLORS in statusColors.ts so slices agree with the
+// status badges shown everywhere else in the app.
 const COLORS: Record<string, string> = {
-  ACTIVE: "#0f172a",
-  ABOUT_TO_LAPSE: "#d97706",
-  IN_ACTIVE: "#94a3b8",
-  DECEASED: "#475569",
+  ACTIVE: STATUS_CHART_COLORS.green,
+  ABOUT_TO_LAPSE: STATUS_CHART_COLORS.amber,
+  IN_ACTIVE: STATUS_CHART_COLORS.red,
+  DECEASED: STATUS_CHART_COLORS.grey,
 };
 
 export default function MemberStatusPieChart({

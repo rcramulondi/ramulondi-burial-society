@@ -2,7 +2,6 @@ import Link from "next/link";
 import Image from "next/image";
 import { auth, signOut } from "@/lib/auth";
 import HamburgerMenu from "./HamburgerMenu";
-import InlineNav from "./InlineNav";
 import {
   LayoutDashboard,
   Users,
@@ -86,25 +85,11 @@ export default async function NavBar() {
           <span className="hidden sm:inline">Ramulondi Burial Society</span>
         </Link>
 
-        <InlineNav links={links} />
-
-        <div className="flex items-center gap-4 shrink-0">
-          <div className="hidden min-[820px]:flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-gold text-navy flex items-center justify-center text-xs font-bold" title={session.user.name ?? undefined}>
-              {initialsFor(session.user.name)}
-            </div>
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/login" });
-              }}
-            >
-              <button type="submit" className="text-sm font-medium text-white/85 hover:text-white transition-colors">
-                Sign out
-              </button>
-            </form>
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-8 h-8 rounded-full bg-gold text-navy flex items-center justify-center text-xs font-bold" title={session.user.name ?? undefined}>
+            {initialsFor(session.user.name)}
           </div>
-          <HamburgerMenu links={links} className="min-[820px]:hidden">
+          <HamburgerMenu links={links}>
             {signOutForm}
           </HamburgerMenu>
         </div>
