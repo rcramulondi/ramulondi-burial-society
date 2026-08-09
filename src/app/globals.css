@@ -1,20 +1,35 @@
 @import "tailwindcss";
+@import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap');
 
 :root {
-  --color-navy: #0b2a4a;
-  --color-background: #f4f8fc;
-  --color-card: #ffffff;
-  --color-accent: #1d5fbf;
-  --color-secondary: #4a8fe0;
-  --color-primary-dark: #164a97;
-  --color-primary-light: #e8f1fc;
-  --color-gold: #e3a008;
-  --color-success: #1e8e5a;
-  --color-success-bg: #e7f6ee;
-  --color-danger: #dc2626;
-  --color-danger-bg: #fdecec;
-  --color-text-muted: #5b6b7f;
-  --color-border: #e1e9f2;
+  /* Industry design system tokens, mapped onto the app's existing variable
+     names so every existing `bg-navy` / `text-accent` / `bg-card` etc. class
+     in the app keeps working — only the values change. */
+  --color-navy: #1d1f20;          /* was #0b2a4a — now Industry's --color-text */
+  --color-background: #f2f2f3;    /* Industry --color-bg */
+  --color-card: transparent;      /* Industry cards are transparent line drawings */
+  --color-accent: #5980a6;        /* Industry --color-accent */
+  --color-secondary: #7a7a7d;     /* Industry --color-neutral-600 */
+  --color-primary-dark: #416180;  /* Industry --color-accent-700 */
+  --color-primary-light: #eef6ff; /* Industry --color-accent-100 */
+  --color-gold: #5980a6;          /* mono palette — no second accent, reuse steel */
+  --color-success: #416180;       /* Industry has one accent; success reuses accent-700 */
+  --color-success-bg: #eef6ff;
+  --color-danger: #2b2b2d;        /* Industry has no red — danger reads as dark neutral + outline, not color */
+  --color-danger-bg: #e7e7ea;
+  --color-text-muted: color-mix(in srgb, #1d1f20 55%, transparent);
+  --color-border: color-mix(in srgb, #1d1f20 16%, transparent);
+
+  /* Full Industry ramps, for anything that needs a specific step */
+  --color-neutral-100: #f5f5f8; --color-neutral-200: #e7e7ea; --color-neutral-300: #d4d4d7;
+  --color-neutral-400: #b7b7ba; --color-neutral-500: #98989b; --color-neutral-600: #7a7a7d;
+  --color-neutral-700: #5d5d60; --color-neutral-800: #424244; --color-neutral-900: #2b2b2d;
+  --color-accent-100: #eef6ff; --color-accent-200: #d6ebff; --color-accent-300: #b5d9fd;
+  --color-accent-400: #94bce3; --color-accent-500: #749dc4; --color-accent-600: #597ea3;
+  --color-accent-700: #416180; --color-accent-800: #2c455d; --color-accent-900: #1d2d3d;
+
+  --font-heading: "Barlow Condensed", system-ui, sans-serif;
+  --radius-industry: 0px; /* square corners everywhere */
 }
 
 @theme inline {
@@ -32,7 +47,7 @@
   --color-danger-bg: var(--color-danger-bg);
   --color-text-muted: var(--color-text-muted);
   --color-border: var(--color-border);
-  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  --font-sans: "Barlow", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
 body {
@@ -40,3 +55,17 @@ body {
   color: var(--color-navy);
   font-family: var(--font-sans);
 }
+h1, h2, h3, h4, h5, h6 { font-family: var(--font-heading); font-weight: 600; letter-spacing: -0.01em; }
+
+/* Blueprint frame — corner registration marks for cards/figures/primary buttons.
+   Usage: wrap an element with position:relative and class "blueprint", add
+   four <i class="corner tl|tr|bl|br" />. */
+.blueprint { position: relative; }
+.blueprint > .corner { position: absolute; width: 11px; height: 11px; color: color-mix(in srgb, var(--color-navy) 55%, transparent); }
+.blueprint > .corner::before, .blueprint > .corner::after { content: ""; position: absolute; background: currentColor; }
+.blueprint > .corner::before { left: 5px; top: 0; width: 1px; height: 100%; }
+.blueprint > .corner::after { top: 5px; left: 0; width: 100%; height: 1px; }
+.blueprint > .corner.tl { top: -6px; left: -6px; }
+.blueprint > .corner.tr { top: -6px; right: -6px; }
+.blueprint > .corner.bl { bottom: -6px; left: -6px; }
+.blueprint > .corner.br { bottom: -6px; right: -6px; }

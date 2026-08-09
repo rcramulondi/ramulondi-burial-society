@@ -9,21 +9,22 @@ export const MEMBER_STATUS_COLORS: Record<MemberStatus, StatusColor> = {
   DECEASED: "grey",
 };
 
-// Beneficiaries have no "trending toward lapsing" state, so INACTIVE maps to
-// red (closer to a member's terminated/lapsed state) rather than amber.
 export const BENEFICIARY_STATUS_COLORS: Record<BeneficiaryStatus, StatusColor> = {
   ACTIVE: "green",
   INACTIVE: "red",
   DECEASED: "grey",
 };
 
+// Industry is a mono (steel-blue) palette — no red/amber/green hues. Status is
+// distinguished by weight/fill instead of hue: filled accent tag = good
+// standing, outline tag = needs attention, neutral tag = inactive/closed.
 export const STATUS_COLOR_CLASSES: Record<StatusColor, string> = {
-  green: "text-success bg-success-bg border-success/30",
-  amber: "text-amber-700 bg-amber-50 border-amber-200",
-  red: "text-danger bg-danger-bg border-danger/30",
-  grey: "text-slate-500 bg-slate-100 border-slate-200",
+  green: "text-white bg-accent border-accent",             // Active — filled, solid
+  amber: "text-navy bg-transparent border-accent",           // About to lapse — outline
+  red: "text-navy bg-transparent border-navy/40",            // Lapsed/terminated — dim outline
+  grey: "text-navy/60 bg-neutral-100 border-transparent",     // Deceased/inactive — flat neutral
 };
 
 export function outstandingBalanceClass(amount: number): string {
-  return amount > 0 ? "font-bold text-danger" : "";
+  return amount > 0 ? "font-bold text-navy" : "";
 }
