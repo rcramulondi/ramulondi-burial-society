@@ -1,6 +1,7 @@
 import { listRecentPayments } from "@/server/actions/payment";
 import { prisma } from "@/lib/prisma";
 import Card from "@/components/ui/Card";
+import { formatDate, formatCurrency } from "@/lib/format";
 import Link from "next/link";
 
 export default async function AdminReportsPage({
@@ -94,14 +95,14 @@ export default async function AdminReportsPage({
             <tbody>
               {payments.map((p) => (
                 <tr key={p.id} className="border-b border-slate-100">
-                  <td className="py-1 pr-3">{p.paymentDate.toDateString()}</td>
+                  <td className="py-1 pr-3">{formatDate(p.paymentDate)}</td>
                   <td className="py-1 pr-3">
                     <Link href={`/admin/members/${p.memberId}/payments`} className="text-accent hover:underline">
                       {p.member.firstName} {p.member.surname}
                     </Link>
                   </td>
                   <td className="py-1 pr-3 hidden min-[480px]:table-cell">{p.category}</td>
-                  <td className="py-1 pr-3 text-right">R {Number(p.amount).toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right">{formatCurrency(p.amount)}</td>
                   <td className="py-1 pr-3">
                     <a href={`/api/reports/proof-of-payment/${p.id}`} target="_blank" className="text-accent hover:underline">
                       Download

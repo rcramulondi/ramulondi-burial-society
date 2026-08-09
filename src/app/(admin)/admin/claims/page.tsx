@@ -1,6 +1,7 @@
 import { listClaims } from "@/server/actions/claim";
 import { prisma } from "@/lib/prisma";
 import { CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
+import { formatDate, formatCurrency } from "@/lib/format";
 import Link from "next/link";
 import type { ClaimStatus } from "@prisma/client";
 
@@ -66,14 +67,14 @@ export default async function AdminClaimsPage({
                 <td className="py-1 pr-3 hidden min-[820px]:table-cell">
                   {c.beneficiary ? `${c.beneficiary.firstName} ${c.beneficiary.surname} (${c.beneficiary.relationship})` : "Member (policyholder)"}
                 </td>
-                <td className="py-1 pr-3 hidden min-[820px]:table-cell">{c.dateDeceased.toDateString()}</td>
+                <td className="py-1 pr-3 hidden min-[820px]:table-cell">{formatDate(c.dateDeceased)}</td>
                 <td className="py-1 pr-3">
                   <span className={`inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border whitespace-nowrap ${CLAIM_STATUS_CLASSES[c.status]}`}>
                     {CLAIM_STATUS_LABELS[c.status]}
                   </span>
                 </td>
-                <td className="py-1 pr-3 hidden min-[820px]:table-cell">{c.submittedAt.toDateString()}</td>
-                <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">{c.payout ? `R ${Number(c.payout.amount).toFixed(2)}` : "—"}</td>
+                <td className="py-1 pr-3 hidden min-[820px]:table-cell">{formatDate(c.submittedAt)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">{c.payout ? formatCurrency(c.payout.amount) : "—"}</td>
               </tr>
             ))}
             {claims.length === 0 && (

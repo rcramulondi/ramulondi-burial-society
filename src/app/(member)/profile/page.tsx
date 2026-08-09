@@ -7,6 +7,7 @@ import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
 import FormKey from "@/components/forms/FormKey";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
+import { formatDate } from "@/lib/format";
 
 export default async function ProfilePage() {
   const session = await auth();
@@ -28,7 +29,7 @@ export default async function ProfilePage() {
           <dt className="text-neutral-500">Status</dt>
           <dd><MemberStatusBadge status={member.status} /></dd>
           <dt className="text-neutral-500">Date joined</dt>
-          <dd>{member.dateJoined.toDateString()}</dd>
+          <dd>{formatDate(member.dateJoined)}</dd>
           <dt className="text-neutral-500">ID Number</dt>
           <dd>{member.idNumber ? `•••• •••• ${member.idNumber.slice(-4)}` : "Not on file — please add it below"}</dd>
         </dl>

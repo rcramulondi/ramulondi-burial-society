@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { getMonthlyFinancialBreakdown } from "@/lib/reports/annualFinancialSummary";
 import IncomeExpenditureChart from "@/components/charts/IncomeExpenditureChart";
 import Card from "@/components/ui/Card";
+import { formatCurrency } from "@/lib/format";
 import Link from "next/link";
 
 const MONTH_NAMES = [
@@ -80,30 +81,30 @@ export default async function IncomeStatementPage({
               {rows.map((r) => (
                 <tr key={r.month} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{MONTH_NAMES[r.month - 1]}</td>
-                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.burialIncome.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.foodIncome.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right">R {r.totalIncome.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(r.burialIncome)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(r.foodIncome)}</td>
+                  <td className="py-1 pr-3 text-right">{formatCurrency(r.totalIncome)}</td>
                   <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
-                    <Link href={`/admin/claims?year=${year}`} className="text-accent hover:underline">R {r.burialExpenditure.toFixed(2)}</Link>
+                    <Link href={`/admin/claims?year=${year}`} className="text-accent hover:underline">{formatCurrency(r.burialExpenditure)}</Link>
                   </td>
                   <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
-                    <Link href="/admin/expenses" className="text-accent hover:underline">R {r.otherExpenses.toFixed(2)}</Link>
+                    <Link href="/admin/expenses" className="text-accent hover:underline">{formatCurrency(r.otherExpenses)}</Link>
                   </td>
-                  <td className="py-1 pr-3 text-right">R {r.totalExpenditure.toFixed(2)}</td>
-                  <td className={`py-1 pr-3 text-right ${r.net >= 0 ? "text-success" : "text-danger"}`}>R {r.net.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right">{formatCurrency(r.totalExpenditure)}</td>
+                  <td className={`py-1 pr-3 text-right ${r.net >= 0 ? "text-success" : "text-danger"}`}>{formatCurrency(r.net)}</td>
                 </tr>
               ))}
             </tbody>
             <tfoot>
               <tr className="border-t-2 border-slate-300 font-medium">
                 <td className="py-1 pr-3">Total</td>
-                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.burialIncome.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.foodIncome.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right">R {totals.totalIncome.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.burialExpenditure.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {totals.otherExpenses.toFixed(2)}</td>
-                <td className="py-1 pr-3 text-right">R {totals.totalExpenditure.toFixed(2)}</td>
-                <td className={`py-1 pr-3 text-right ${totals.net >= 0 ? "text-success" : "text-danger"}`}>R {totals.net.toFixed(2)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(totals.burialIncome)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(totals.foodIncome)}</td>
+                <td className="py-1 pr-3 text-right">{formatCurrency(totals.totalIncome)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(totals.burialExpenditure)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(totals.otherExpenses)}</td>
+                <td className="py-1 pr-3 text-right">{formatCurrency(totals.totalExpenditure)}</td>
+                <td className={`py-1 pr-3 text-right ${totals.net >= 0 ? "text-success" : "text-danger"}`}>{formatCurrency(totals.net)}</td>
               </tr>
             </tfoot>
           </table>

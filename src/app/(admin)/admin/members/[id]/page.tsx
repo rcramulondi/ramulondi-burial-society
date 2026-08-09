@@ -11,6 +11,7 @@ import InviteButton from "@/components/forms/InviteButton";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import SearchSelect from "@/components/ui/SearchSelect";
+import { formatDate, formatCurrency } from "@/lib/format";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
@@ -84,7 +85,7 @@ export default async function AdminMemberDetailPage({
               <dt className="text-neutral-500">Status</dt>
               <dd>{memberLevelClaim.status}</dd>
               <dt className="text-neutral-500">Date deceased</dt>
-              <dd>{memberLevelClaim.dateDeceased.toDateString()}</dd>
+              <dd>{formatDate(memberLevelClaim.dateDeceased)}</dd>
               <dt className="text-neutral-500">Place of burial</dt>
               <dd>{memberLevelClaim.placeOfBurial}</dd>
               {memberLevelClaim.reviewNotes && (
@@ -96,9 +97,9 @@ export default async function AdminMemberDetailPage({
               {memberLevelClaim.payout && (
                 <>
                   <dt className="text-neutral-500">Payout amount</dt>
-                  <dd>R {Number(memberLevelClaim.payout.amount).toFixed(2)}</dd>
+                  <dd>{formatCurrency(memberLevelClaim.payout.amount)}</dd>
                   <dt className="text-neutral-500">Paid date</dt>
-                  <dd>{memberLevelClaim.payout.paidDate.toDateString()}</dd>
+                  <dd>{formatDate(memberLevelClaim.payout.paidDate)}</dd>
                 </>
               )}
             </dl>
@@ -158,7 +159,7 @@ export default async function AdminMemberDetailPage({
             <dt className="text-neutral-500">ID number</dt>
             <dd>{member.idNumber ?? "—"}</dd>
             <dt className="text-neutral-500">Date deceased</dt>
-            <dd>{member.deceasedDate?.toDateString() ?? "—"}</dd>
+            <dd>{formatDate(member.deceasedDate)}</dd>
           </dl>
         )}
       </Card>

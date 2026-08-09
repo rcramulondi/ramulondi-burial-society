@@ -4,6 +4,7 @@ import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 import { projectedForYear, getActiveCountsAndRates } from "@/lib/business/projectedContributions";
 import { getMemberStatusCountsAsOf } from "@/lib/business/memberStatus";
 import { listUnallocatedFunds } from "@/server/actions/unallocatedFund";
+import { formatCurrency } from "@/lib/format";
 import MemberStatusPieChart from "@/components/charts/MemberStatusPieChart";
 import Card from "@/components/ui/Card";
 import DeltaPill from "@/components/ui/DeltaPill";
@@ -133,27 +134,27 @@ export default async function AdminDashboardPage({
         </Link>
         <Card>
           <p className="text-xs text-neutral-500 flex items-center gap-1.5"><Banknote className="w-3.5 h-3.5" /> Total collected ({selectionLabel})</p>
-          <p className="text-lg font-semibold mt-1 text-navy">R {totalCollected.toFixed(2)}</p>
+          <p className="text-lg font-semibold mt-1 text-navy">{formatCurrency(totalCollected)}</p>
           {!isConsolidated && <DeltaPill current={totalCollected} previous={totalCollectedPrior} />}
         </Card>
         <Link href={isConsolidated ? "/admin/claims" : `/admin/claims?year=${selectedYear}`} className="block">
           <Card className="hover:border-accent transition-colors">
             <p className="text-xs text-neutral-500 flex items-center gap-1.5"><HandCoins className="w-3.5 h-3.5" /> Burial payouts ({selectionLabel})</p>
-            <p className="text-lg font-semibold mt-1 text-navy">R {burialPayoutsSelected.toFixed(2)}</p>
+            <p className="text-lg font-semibold mt-1 text-navy">{formatCurrency(burialPayoutsSelected)}</p>
             {!isConsolidated && <DeltaPill current={burialPayoutsSelected} previous={burialPayoutsPrior} />}
           </Card>
         </Link>
         <Link href="/admin/expenses" className="block">
           <Card className="hover:border-accent transition-colors">
             <p className="text-xs text-neutral-500 flex items-center gap-1.5"><Receipt className="w-3.5 h-3.5" /> Other expenses ({selectionLabel})</p>
-            <p className="text-lg font-semibold mt-1 text-navy">R {otherExpensesSelected.toFixed(2)}</p>
+            <p className="text-lg font-semibold mt-1 text-navy">{formatCurrency(otherExpensesSelected)}</p>
             {!isConsolidated && <DeltaPill current={otherExpensesSelected} previous={otherExpensesPrior} />}
           </Card>
         </Link>
         <Link href="/admin/unallocated-funds" className="block">
           <Card className="hover:border-accent transition-colors">
             <p className="text-xs text-neutral-500 flex items-center gap-1.5"><Coins className="w-3.5 h-3.5" /> Unallocated funds</p>
-            <p className="text-lg font-semibold mt-1 text-navy">R {unallocatedTotal.toFixed(2)}</p>
+            <p className="text-lg font-semibold mt-1 text-navy">{formatCurrency(unallocatedTotal)}</p>
           </Card>
         </Link>
       </div>
@@ -200,23 +201,23 @@ export default async function AdminDashboardPage({
                     <td className="py-1 pr-3">
                       <Link href={`/admin/dashboard/year/${year}`} className="text-accent hover:underline">{year}</Link>
                     </td>
-                    <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {burial.toFixed(2)}</td>
-                    <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {food.toFixed(2)}</td>
-                    <td className="py-1 pr-3 text-right">R {actual.toFixed(2)}</td>
-                    <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {projected.toFixed(2)}</td>
+                    <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(burial)}</td>
+                    <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(food)}</td>
+                    <td className="py-1 pr-3 text-right">{formatCurrency(actual)}</td>
+                    <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(projected)}</td>
                     <td className={`py-1 pr-3 text-right ${shortfall > 0 ? "text-danger" : "text-success"}`}>
                       <Link href={`/admin/dashboard/year/${year}`} className="hover:underline">
-                        R {shortfall.toFixed(2)}
+                        {formatCurrency(shortfall)}
                       </Link>
                     </td>
                     <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
                       <Link href={`/admin/claims?year=${year}`} className="text-accent hover:underline">
-                        R {claimPayoutsByYear(year).toFixed(2)}
+                        {formatCurrency(claimPayoutsByYear(year))}
                       </Link>
                     </td>
                     <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
                       <Link href="/admin/expenses" className="text-accent hover:underline">
-                        R {expensesByYear(year).toFixed(2)}
+                        {formatCurrency(expensesByYear(year))}
                       </Link>
                     </td>
                   </tr>

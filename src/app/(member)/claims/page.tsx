@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
 import { uploadDocument } from "@/server/actions/document";
+import { formatDate, formatCurrency } from "@/lib/format";
 import ActionForm from "@/components/forms/ActionForm";
 
 export default async function ClaimsPage() {
@@ -87,10 +88,10 @@ function ClaimCard({
   return (
     <div className="border rounded p-3 text-sm flex flex-col gap-2">
       <p>Status: <span className="font-medium">{CLAIM_STATUS_LABELS[claim.status]}</span></p>
-      <p className="text-neutral-500">Date deceased: {claim.dateDeceased.toDateString()}</p>
+      <p className="text-neutral-500">Date deceased: {formatDate(claim.dateDeceased)}</p>
       {claim.payout && (
         <p className="text-neutral-500">
-          Paid R{Number(claim.payout.amount).toFixed(2)} on {claim.payout.paidDate.toDateString()}
+          Paid {formatCurrency(claim.payout.amount as number)} on {formatDate(claim.payout.paidDate)}
         </p>
       )}
 

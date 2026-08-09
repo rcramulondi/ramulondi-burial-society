@@ -4,6 +4,7 @@ import { computeClaimPayoutAmount } from "@/lib/business/claimEligibility";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import { CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
+import { formatDate, formatCurrency } from "@/lib/format";
 import { notFound } from "next/navigation";
 
 export default async function AdminClaimDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -33,11 +34,11 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
 
       <dl className="text-sm grid grid-cols-2 gap-y-1">
         <dt className="text-neutral-500">Date deceased</dt>
-        <dd>{claim.dateDeceased.toDateString()}</dd>
+        <dd>{formatDate(claim.dateDeceased)}</dd>
         <dt className="text-neutral-500">Place of burial</dt>
         <dd>{claim.placeOfBurial === "KHALAVHA" ? "Khalavha" : "Community site (other)"}</dd>
         <dt className="text-neutral-500">Payout amount</dt>
-        <dd className="font-medium">R {computedAmount.toFixed(2)}</dd>
+        <dd className="font-medium">{formatCurrency(computedAmount)}</dd>
         <dt className="text-neutral-500">Payout recipient</dt>
         <dd>{claim.payoutRecipientName} {claim.payoutRecipientSurname}</dd>
         <dt className="text-neutral-500">Recipient ID</dt>
@@ -48,7 +49,7 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
         <dd>{claim.bankName} &middot; {claim.bankAccountNumber}</dd>
         <dt className="text-neutral-500">Outstanding balance</dt>
         <dd className={outstanding > 0 ? "text-danger dark:text-red-400 font-medium" : ""}>
-          R {outstanding.toFixed(2)}
+          {formatCurrency(outstanding)}
         </dd>
       </dl>
 
@@ -89,7 +90,7 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
             </p>
           )}
           <p className="text-sm mb-2">
-            Payout amount (predetermined): <span className="font-medium">R {computedAmount.toFixed(2)}</span>
+            Payout amount (predetermined): <span className="font-medium">{formatCurrency(computedAmount)}</span>
           </p>
           <ActionForm action={recordClaimPayoutForm} submitLabel="Record payout">
             <input type="hidden" name="claimId" value={claim.id} />
@@ -104,7 +105,7 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
         <section>
           <h2 className="font-medium mb-2">Payout recorded</h2>
           <p className="text-sm">
-            R {Number(claim.payout.amount).toFixed(2)} paid to {claim.payout.paidTo} on {claim.payout.paidDate.toDateString()}
+            {formatCurrency(claim.payout.amount)} paid to {claim.payout.paidTo} on {formatDate(claim.payout.paidDate)}
           </p>
         </section>
       )}

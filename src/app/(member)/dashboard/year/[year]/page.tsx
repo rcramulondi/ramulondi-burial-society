@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { computeFullRateForMonth } from "@/lib/business/contributionAllocation";
+import { formatCurrency } from "@/lib/format";
 import Card from "@/components/ui/Card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -45,7 +46,7 @@ export default async function MemberDashboardYearPage({ params }: { params: Prom
       <div>
         <Link href="/dashboard" className="text-sm text-accent hover:underline">&larr; Back to dashboard</Link>
         <h1 className="text-xl font-semibold text-navy mt-2">{year} contributions</h1>
-        <p className="text-sm text-neutral-500 mt-1">R {yearActual.toFixed(2)} collected this year.</p>
+        <p className="text-sm text-neutral-500 mt-1">{formatCurrency(yearActual)} collected this year.</p>
       </div>
 
       <Card>
@@ -66,12 +67,12 @@ export default async function MemberDashboardYearPage({ params }: { params: Prom
               {rows.map((r) => (
                 <tr key={r.month} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{r.monthName}</td>
-                  <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">R {r.burial.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">R {r.food.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">{formatCurrency(r.burial)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[480px]:table-cell">{formatCurrency(r.food)}</td>
                   <td className={`py-1 pr-3 text-right ${r.belowRate ? "font-bold text-danger" : ""}`}>
-                    R {r.actual.toFixed(2)}
+                    {formatCurrency(r.actual)}
                   </td>
-                  <td className="py-1 pr-3 text-right text-neutral-500 hidden min-[480px]:table-cell">R {r.fullRate.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right text-neutral-500 hidden min-[480px]:table-cell">{formatCurrency(r.fullRate)}</td>
                 </tr>
               ))}
             </tbody>

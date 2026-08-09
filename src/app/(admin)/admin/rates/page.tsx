@@ -3,6 +3,7 @@ import { listClaimRates, createClaimRateForm } from "@/server/actions/claimRate"
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
+import { formatDate, formatCurrency } from "@/lib/format";
 
 const CLAIM_RATE_TYPE_LABELS: Record<string, string> = {
   BASE_PAYOUT: "Base claim payout",
@@ -37,9 +38,9 @@ export default async function AdminRatesPage() {
             <tr key={r.id} className="border-b border-black/5 dark:border-white/10">
               <td className="py-1">{r.membershipType}</td>
               <td className="py-1">{r.fund}</td>
-              <td className="py-1">R {Number(r.amount).toFixed(2)}</td>
-              <td className="py-1 hidden min-[480px]:table-cell">{r.effectiveFrom.toDateString()}</td>
-              <td className="py-1 hidden min-[480px]:table-cell">{r.effectiveTo ? r.effectiveTo.toDateString() : "current"}</td>
+              <td className="py-1">{formatCurrency(r.amount)}</td>
+              <td className="py-1 hidden min-[480px]:table-cell">{formatDate(r.effectiveFrom)}</td>
+              <td className="py-1 hidden min-[480px]:table-cell">{r.effectiveTo ? formatDate(r.effectiveTo) : "current"}</td>
             </tr>
           ))}
         </tbody>
@@ -97,9 +98,9 @@ export default async function AdminRatesPage() {
           {claimRates.map((r) => (
             <tr key={r.id} className="border-b border-black/5 dark:border-white/10">
               <td className="py-1">{CLAIM_RATE_TYPE_LABELS[r.type] ?? r.type}</td>
-              <td className="py-1">R {Number(r.amount).toFixed(2)}</td>
-              <td className="py-1 hidden min-[480px]:table-cell">{r.effectiveFrom.toDateString()}</td>
-              <td className="py-1 hidden min-[480px]:table-cell">{r.effectiveTo ? r.effectiveTo.toDateString() : "current"}</td>
+              <td className="py-1">{formatCurrency(r.amount)}</td>
+              <td className="py-1 hidden min-[480px]:table-cell">{formatDate(r.effectiveFrom)}</td>
+              <td className="py-1 hidden min-[480px]:table-cell">{r.effectiveTo ? formatDate(r.effectiveTo) : "current"}</td>
             </tr>
           ))}
         </tbody>

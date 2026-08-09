@@ -6,6 +6,7 @@ import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
 import FormKey from "@/components/forms/FormKey";
 import Card from "@/components/ui/Card";
+import { formatDate, formatCurrency } from "@/lib/format";
 
 export default async function AdminExpensesPage() {
   const session = await auth();
@@ -78,9 +79,9 @@ export default async function AdminExpensesPage() {
             <tbody>
               {expenses.map((e) => (
                 <tr key={e.id} className="border-b border-slate-100">
-                  <td className="py-1 pr-3">{e.expenseDate.toDateString()}</td>
+                  <td className="py-1 pr-3">{formatDate(e.expenseDate)}</td>
                   <td className="py-1 pr-3">{e.description}</td>
-                  <td className="py-1 pr-3 text-right">R {Number(e.amount).toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right">{formatCurrency(e.amount)}</td>
                   <td className="py-1 pr-3 hidden min-[820px]:table-cell">{e.spentByMember.firstName} {e.spentByMember.surname}</td>
                   <td className="py-1 pr-3 hidden min-[820px]:table-cell">{COMMITTEE_ROLE_LABELS[e.approvedByRole]}</td>
                   <td className="py-1 pr-3">

@@ -2,6 +2,7 @@
 
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from "recharts";
 import { CHART_COLORS } from "@/lib/chartColors";
+import { formatCurrency } from "@/lib/format";
 
 const COLORS: Record<string, string> = {
   "Burial payouts": CHART_COLORS.primary,
@@ -31,7 +32,7 @@ export default function ExpenditureSplitPieChart({
             <Cell key={entry.label} fill={COLORS[entry.label] ?? "#cbd5e1"} />
           ))}
         </Pie>
-        <Tooltip formatter={(value: number, name: string) => [`R ${value.toFixed(2)}`, name]} />
+        <Tooltip formatter={(value: number, name: string) => [formatCurrency(value), name]} />
       </PieChart>
     </ResponsiveContainer>
   );

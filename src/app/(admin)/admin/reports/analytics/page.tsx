@@ -7,6 +7,7 @@ import IncomeExpenditureChart from "@/components/charts/IncomeExpenditureChart";
 import FundSplitChart from "@/components/charts/FundSplitChart";
 import ExpenditureSplitPieChart from "@/components/charts/ExpenditureSplitPieChart";
 import Card from "@/components/ui/Card";
+import { formatCurrency } from "@/lib/format";
 import Link from "next/link";
 import type { MemberStatus } from "@prisma/client";
 
@@ -98,12 +99,12 @@ export default async function AnalyticsDashboardPage({
         </Card>
         <Card>
           <p className="text-xs text-neutral-500">Unallocated funds</p>
-          <p className="text-lg font-semibold mt-1 text-navy">R {unallocatedTotal.toFixed(2)}</p>
+          <p className="text-lg font-semibold mt-1 text-navy">{formatCurrency(unallocatedTotal)}</p>
         </Card>
         <Card>
           <p className="text-xs text-neutral-500">Net position ({year})</p>
           <p className={`text-lg font-semibold mt-1 ${annualSummary.net >= 0 ? "text-success" : "text-danger"}`}>
-            R {annualSummary.net.toFixed(2)}
+            {formatCurrency(annualSummary.net)}
           </p>
         </Card>
       </div>

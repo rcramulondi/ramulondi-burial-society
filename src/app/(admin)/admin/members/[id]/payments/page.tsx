@@ -7,6 +7,7 @@ import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
 import FormKey from "@/components/forms/FormKey";
 import Card from "@/components/ui/Card";
+import { formatCurrency } from "@/lib/format";
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -115,7 +116,7 @@ export default async function MemberPaymentHistoryPage({
             <div key={i} className="border border-slate-200 rounded p-2 text-center">
               <p className="text-xs text-neutral-500">{MONTH_NAMES[i]}</p>
               <p className={r.belowRate ? "font-bold text-danger" : r.amount > 0 ? "font-medium text-navy" : "text-neutral-400"}>
-                {r.amount > 0 ? `R${r.amount.toFixed(0)}` : "—"}
+                {r.amount > 0 ? formatCurrency(r.amount) : "—"}
               </p>
               {r.paymentIds.map((paymentId) => (
                 <a

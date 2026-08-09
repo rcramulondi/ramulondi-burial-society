@@ -1,7 +1,7 @@
 import { listMembersWithSummary } from "@/server/actions/member";
 import { STATUS_LABELS } from "@/lib/statusLabels";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
-import { outstandingBalanceClass } from "@/lib/statusColors";
+import { formatDate, formatCurrency } from "@/lib/format";
 import Link from "next/link";
 
 export default async function AdminMembersPage({
@@ -56,12 +56,11 @@ export default async function AdminMembersPage({
             <tr className="text-left border-b border-slate-200">
               <th className="py-1 pr-3">Membership No</th>
               <th className="py-1 pr-3">Name</th>
-              <th className="py-1 pr-3 hidden min-[820px]:table-cell">Type</th>
               <th className="py-1 pr-3">Status</th>
               <th className="py-1 pr-3 hidden min-[820px]:table-cell">Phone</th>
               <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Beneficiaries</th>
+              <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Claims</th>
               <th className="py-1 pr-3 text-right hidden min-[820px]:table-cell">Contributions ({new Date().getFullYear()})</th>
-              <th className="py-1 pr-3 text-right hidden min-[480px]:table-cell">Outstanding ({new Date().getFullYear()})</th>
               <th className="py-1 pr-3 hidden min-[480px]:table-cell">Date of termination</th>
             </tr>
           </thead>
@@ -72,7 +71,6 @@ export default async function AdminMembersPage({
                   <Link href={`/admin/members/${m.id}`} className="text-accent hover:underline">{m.membershipNo}</Link>
                 </td>
                 <td className="py-1 pr-3">{m.firstName} {m.surname}</td>
-                <td className="py-1 pr-3 hidden min-[820px]:table-cell">{m.type}</td>
                 <td className="py-1 pr-3">
                   {m.isDraft ? (
                     <span className="inline-flex items-center rounded px-2 py-0.5 text-xs font-medium border text-amber-700 bg-amber-50 border-amber-200 whitespace-nowrap">
@@ -84,13 +82,13 @@ export default async function AdminMembersPage({
                 </td>
                 <td className="py-1 pr-3 hidden min-[820px]:table-cell">{m.phone ?? "—"}</td>
                 <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{m.beneficiaryCount}</td>
-                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {m.contributionsThisYear.toFixed(2)}</td>
-                <td className={`py-1 pr-3 text-right hidden min-[480px]:table-cell ${outstandingBalanceClass(m.outstandingThisYear)}`}>R {m.outstandingThisYear.toFixed(2)}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{m.claimsCount}</td>
+                <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(m.contributionsThisYear)}</td>
                 <td className="py-1 pr-3 hidden min-[480px]:table-cell">
                   {m.status === "IN_ACTIVE" && m.terminationDate ? (
-                    m.terminationDate.toDateString()
+                    formatDate(m.terminationDate)
                   ) : m.status === "ABOUT_TO_LAPSE" && m.projectedTerminationDate ? (
-                    <span className="font-bold text-danger">{m.projectedTerminationDate.toDateString()}</span>
+                    <span className="font-bold text-danger">{formatDate(m.projectedTerminationDate)}</span>
                   ) : (
                     "—"
                   )}

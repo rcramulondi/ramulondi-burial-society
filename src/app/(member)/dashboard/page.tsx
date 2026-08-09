@@ -5,6 +5,7 @@ import { getMemberPayoutSummary } from "@/server/actions/claim";
 import { CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 import { outstandingBalanceClass } from "@/lib/statusColors";
+import { formatDate, formatCurrency } from "@/lib/format";
 import Button from "@/components/ui/Button";
 import Link from "next/link";
 
@@ -41,7 +42,7 @@ export default async function MemberDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
           label="Outstanding balance"
-          value={`R ${summary.outstandingBalance.toFixed(2)}`}
+          value={formatCurrency(summary.outstandingBalance)}
           valueClassName={outstandingBalanceClass(summary.outstandingBalance)}
         />
         <StatCard label="Beneficiaries" value={String(member.beneficiaries.length)} />
@@ -69,9 +70,9 @@ export default async function MemberDashboardPage() {
                 <td className="py-1">
                   <Link href={`/dashboard/year/${y.year}`} className="text-accent hover:underline">{y.year}</Link>
                 </td>
-                <td className="py-1 hidden min-[480px]:table-cell">R {y.byFund.BURIAL.toFixed(2)}</td>
-                <td className="py-1 hidden min-[480px]:table-cell">R {y.byFund.FOOD.toFixed(2)}</td>
-                <td className="py-1 font-medium">R {y.total.toFixed(2)}</td>
+                <td className="py-1 hidden min-[480px]:table-cell">{formatCurrency(y.byFund.BURIAL)}</td>
+                <td className="py-1 hidden min-[480px]:table-cell">{formatCurrency(y.byFund.FOOD)}</td>
+                <td className="py-1 font-medium">{formatCurrency(y.total)}</td>
               </tr>
             ))}
             {summary.byYear.length === 0 && (
@@ -105,12 +106,12 @@ export default async function MemberDashboardPage() {
           <h2 className="font-medium mb-2">Payouts</h2>
           <p className="text-sm text-neutral-500 mb-2">
             {payoutSummary.count} claim{payoutSummary.count === 1 ? "" : "s"} paid out, totalling{" "}
-            <span className="font-medium">R {payoutSummary.total.toFixed(2)}</span>.
+            <span className="font-medium">{formatCurrency(payoutSummary.total)}</span>.
           </p>
           <ul className="text-sm flex flex-col gap-1">
             {payoutSummary.payouts.map((p) => (
               <li key={p.id}>
-                R {Number(p.amount).toFixed(2)} paid to {p.paidTo} on {p.paidDate.toDateString()}
+                {formatCurrency(p.amount)} paid to {p.paidTo} on {formatDate(p.paidDate)}
                 {p.claim.beneficiary && ` (${p.claim.beneficiary.firstName} ${p.claim.beneficiary.surname})`}
               </li>
             ))}

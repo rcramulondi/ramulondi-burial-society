@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { projectedForMonth, getActiveCountsAndRates } from "@/lib/business/projectedContributions";
 import MonthlyContributionChart from "@/components/charts/MonthlyContributionChart";
+import { formatCurrency } from "@/lib/format";
 import Card from "@/components/ui/Card";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -58,7 +59,7 @@ export default async function DashboardYearPage({ params }: { params: Promise<{ 
         <Link href="/admin/dashboard" className="text-sm text-accent hover:underline">&larr; Back to dashboard</Link>
         <h1 className="text-xl font-semibold text-navy mt-2">{year} contributions</h1>
         <p className="text-sm text-neutral-500 mt-1">
-          Split: Burial fund {burialPercent}% &middot; Food fund {foodPercent}% of R {yearActual.toFixed(2)} collected.
+          Split: Burial fund {burialPercent}% &middot; Food fund {foodPercent}% of {formatCurrency(yearActual)} collected.
         </p>
       </div>
 
@@ -86,12 +87,12 @@ export default async function DashboardYearPage({ params }: { params: Promise<{ 
               {rows.map((r) => (
                 <tr key={r.month} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{r.monthName}</td>
-                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.burial.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.food.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right">R {r.actual.toFixed(2)}</td>
-                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">R {r.projected.toFixed(2)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(r.burial)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(r.food)}</td>
+                  <td className="py-1 pr-3 text-right">{formatCurrency(r.actual)}</td>
+                  <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">{formatCurrency(r.projected)}</td>
                   <td className={`py-1 pr-3 text-right ${r.variance < 0 ? "text-danger" : "text-success"}`}>
-                    R {r.variance.toFixed(2)}
+                    {formatCurrency(r.variance)}
                   </td>
                   <td className="py-1 pr-3 text-right hidden min-[820px]:table-cell">
                     {r.contributorCount} / {r.eligibleCount}

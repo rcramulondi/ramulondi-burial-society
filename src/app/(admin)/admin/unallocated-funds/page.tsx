@@ -5,6 +5,7 @@ import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
 import FormKey from "@/components/forms/FormKey";
 import Card from "@/components/ui/Card";
+import { formatDate, formatCurrency } from "@/lib/format";
 
 export default async function AdminUnallocatedFundsPage() {
   const [funds, members] = await Promise.all([
@@ -56,12 +57,12 @@ export default async function AdminUnallocatedFundsPage() {
             <tbody>
               {funds.map((f) => (
                 <tr key={f.id} className="border-b border-slate-100 align-top">
-                  <td className="py-2 pr-3">{f.depositDate.toDateString()}</td>
+                  <td className="py-2 pr-3">{formatDate(f.depositDate)}</td>
                   <td className="py-2 pr-3 hidden min-[820px]:table-cell">{f.reference ?? "—"}</td>
                   <td className="py-2 pr-3 hidden min-[820px]:table-cell">{f.depositType}</td>
-                  <td className="py-2 pr-3 text-right">R {Number(f.amount).toFixed(2)}</td>
-                  <td className="py-2 pr-3 text-right hidden min-[480px]:table-cell">R {f.allocatedAmount.toFixed(2)}</td>
-                  <td className="py-2 pr-3 text-right font-medium">R {f.remaining.toFixed(2)}</td>
+                  <td className="py-2 pr-3 text-right">{formatCurrency(f.amount)}</td>
+                  <td className="py-2 pr-3 text-right hidden min-[480px]:table-cell">{formatCurrency(f.allocatedAmount)}</td>
+                  <td className="py-2 pr-3 text-right font-medium">{formatCurrency(f.remaining)}</td>
                   <td className="py-2 pr-3">
                     {f.remaining > 0 ? (
                       <details>
@@ -77,7 +78,7 @@ export default async function AdminUnallocatedFundsPage() {
                               ))}
                             </select>
                           </label>
-                          <Field label={`Amount (max R${f.remaining.toFixed(2)})`} name="amount" type="number" required />
+                          <Field label={`Amount (max ${formatCurrency(f.remaining)})`} name="amount" type="number" required />
                         </ActionForm>
                       </details>
                     ) : (
@@ -86,7 +87,7 @@ export default async function AdminUnallocatedFundsPage() {
                     {f.allocations.length > 0 && (
                       <ul className="text-xs text-neutral-500 mt-2">
                         {f.allocations.map((a) => (
-                          <li key={a.id}>R {Number(a.amount).toFixed(2)} → {a.member.firstName} {a.member.surname}</li>
+                          <li key={a.id}>{formatCurrency(a.amount)} → {a.member.firstName} {a.member.surname}</li>
                         ))}
                       </ul>
                     )}

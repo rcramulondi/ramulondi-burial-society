@@ -2,6 +2,7 @@ import { getMemberDetail } from "@/server/actions/member";
 import { getMemberContributionSummary } from "@/server/actions/payment";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 import { outstandingBalanceClass } from "@/lib/statusColors";
+import { formatCurrency } from "@/lib/format";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 
@@ -30,7 +31,7 @@ export default async function MemberDetailLayout({
           <span>{member.membershipNo}</span>
           <MemberStatusBadge status={member.status} />
           <span>
-            Outstanding: <span className={outstandingBalanceClass(summary.outstandingBalance)}>R {summary.outstandingBalance.toFixed(2)}</span>
+            Outstanding: <span className={outstandingBalanceClass(summary.outstandingBalance)}>{formatCurrency(summary.outstandingBalance)}</span>
           </span>
         </p>
       </div>

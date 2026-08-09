@@ -6,6 +6,7 @@ import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
 import Card from "@/components/ui/Card";
 import SearchSelect from "@/components/ui/SearchSelect";
+import { formatDate } from "@/lib/format";
 
 export default async function AdminCommitteePage() {
   const [holders, history, eligibleMembers] = await Promise.all([
@@ -44,7 +45,7 @@ export default async function AdminCommitteePage() {
                     <td className="py-2 pr-3">
                       {holder ? `${holder.member.firstName} ${holder.member.surname}` : <span className="text-neutral-500">Vacant</span>}
                     </td>
-                    <td className="py-2 pr-3 hidden min-[480px]:table-cell">{holder ? holder.startDate.toDateString() : "—"}</td>
+                    <td className="py-2 pr-3 hidden min-[480px]:table-cell">{holder ? formatDate(holder.startDate) : "—"}</td>
                     <td className="py-2 pr-3">
                       <details>
                         <summary className="cursor-pointer text-xs underline">Assign</summary>
@@ -91,8 +92,8 @@ export default async function AdminCommitteePage() {
                 <tr key={h.id} className="border-b border-slate-100">
                   <td className="py-1 pr-3">{COMMITTEE_ROLE_LABELS[h.role]}</td>
                   <td className="py-1 pr-3">{h.member.firstName} {h.member.surname}</td>
-                  <td className="py-1 pr-3 hidden min-[480px]:table-cell">{h.startDate.toDateString()}</td>
-                  <td className="py-1 pr-3">{h.endDate ? h.endDate.toDateString() : <span className="text-accent">Current</span>}</td>
+                  <td className="py-1 pr-3 hidden min-[480px]:table-cell">{formatDate(h.startDate)}</td>
+                  <td className="py-1 pr-3">{h.endDate ? formatDate(h.endDate) : <span className="text-accent">Current</span>}</td>
                 </tr>
               ))}
               {history.length === 0 && (

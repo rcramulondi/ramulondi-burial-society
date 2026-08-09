@@ -271,16 +271,22 @@ export async function listMembersWithSummary(query?: { search?: string; status?:
   const [members, total] = await Promise.all([listMembers(query), countMembers(query)]);
   const memberIds = members.map((m) => m.id);
 
-  const [figures, beneficiaryCounts] = await Promise.all([
+  const [figures, beneficiaryCounts, claimCounts] = await Promise.all([
     getCurrentYearMemberFigures(memberIds),
     prisma.beneficiary.groupBy({
       by: ["memberId"],
       where: { memberId: { in: memberIds }, deletedAt: null, status: { in: ["ACTIVE", "INACTIVE"] } },
       _count: true,
     }),
+    prisma.claim.groupBy({
+      by: ["memberId"],
+      where: { memberId: { in: memberIds } },
+      _count: true,
+    }),
   ]);
 
   const beneficiaryCountByMember = new Map(beneficiaryCounts.map((b) => [b.memberId, b._count]));
+  const claimCountByMember = new Map(claimCounts.map((c) => [c.memberId, c._count]));
 
   return {
     members: members.map((m) => {
@@ -288,6 +294,7 @@ export async function listMembersWithSummary(query?: { search?: string; status?:
       return {
         ...m,
         beneficiaryCount: beneficiaryCountByMember.get(m.id) ?? 0,
+        claimsCount: claimCountByMember.get(m.id) ?? 0,
         contributionsThisYear: f?.contributionsThisYear ?? 0,
         outstandingThisYear: f?.outstandingThisYear ?? 0,
         terminationDate: f?.terminationDate ?? null,

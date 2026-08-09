@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getMemberContributionSummary, listMemberPayments } from "@/server/actions/payment";
 import { computeFullRateForMonth } from "@/lib/business/contributionAllocation";
 import { outstandingBalanceClass } from "@/lib/statusColors";
+import { formatDate, formatCurrency } from "@/lib/format";
 
 const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
@@ -50,7 +51,7 @@ export default async function ContributionsPage({
       <div>
         <h1 className="text-xl font-semibold">Contributions</h1>
         <p className="text-sm text-neutral-500">
-          Outstanding balance: <span className={outstandingBalanceClass(summary.outstandingBalance)}>R {summary.outstandingBalance.toFixed(2)}</span>
+          Outstanding balance: <span className={outstandingBalanceClass(summary.outstandingBalance)}>{formatCurrency(summary.outstandingBalance)}</span>
         </p>
       </div>
 
@@ -76,7 +77,7 @@ export default async function ContributionsPage({
             <div key={r.month} className="border rounded p-2 text-center">
               <p className="text-xs text-neutral-500">{r.monthName}</p>
               <p className={r.belowRate ? "font-bold text-danger" : r.amount > 0 ? "font-medium" : "text-neutral-400"}>
-                {r.amount > 0 ? `R${r.amount.toFixed(0)}` : "—"}
+                {r.amount > 0 ? formatCurrency(r.amount) : "—"}
               </p>
             </div>
           ))}
@@ -104,11 +105,11 @@ export default async function ContributionsPage({
                   const food = p.allocations.filter((a) => a.fund === "FOOD").reduce((s, a) => s + Number(a.amount), 0);
                   return (
                     <tr key={p.id} className="border-b border-black/5">
-                      <td className="py-1">{p.paymentDate.toDateString()}</td>
+                      <td className="py-1">{formatDate(p.paymentDate)}</td>
                       <td className="py-1 hidden min-[480px]:table-cell">{p.category}</td>
-                      <td className="py-1 text-right">{burial > 0 ? `R ${burial.toFixed(2)}` : "—"}</td>
-                      <td className="py-1 text-right">{food > 0 ? `R ${food.toFixed(2)}` : "—"}</td>
-                      <td className="py-1 text-right font-medium">R {Number(p.amount).toFixed(2)}</td>
+                      <td className="py-1 text-right">{burial > 0 ? formatCurrency(burial) : "—"}</td>
+                      <td className="py-1 text-right">{food > 0 ? formatCurrency(food) : "—"}</td>
+                      <td className="py-1 text-right font-medium">{formatCurrency(p.amount)}</td>
                       <td className="py-1">
                         <a href={`/api/reports/proof-of-payment/${p.id}`} target="_blank" className="underline">
                           Receipt
