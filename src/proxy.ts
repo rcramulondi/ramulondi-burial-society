@@ -15,7 +15,7 @@ export default auth((req) => {
     if (!isAdmin) return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
-  const memberOnlyPrefixes = ["/dashboard", "/beneficiaries", "/contributions", "/claims", "/profile"];
+  const memberOnlyPrefixes = ["/dashboard", "/beneficiaries", "/contributions", "/claims", "/profile", "/meetings"];
   if (memberOnlyPrefixes.some((p) => pathname.startsWith(p)) && !isAuthed) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
@@ -24,5 +24,5 @@ export default auth((req) => {
 });
 
 export const config = {
-  matcher: ["/admin/:path*", "/dashboard/:path*", "/beneficiaries/:path*", "/contributions/:path*", "/claims/:path*", "/profile/:path*"],
+  matcher: ["/admin/:path*", "/dashboard/:path*", "/beneficiaries/:path*", "/contributions/:path*", "/claims/:path*", "/profile/:path*", "/meetings/:path*"],
 };

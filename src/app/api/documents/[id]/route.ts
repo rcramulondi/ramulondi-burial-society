@@ -17,7 +17,12 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
   const ownerMemberId =
     doc.memberId ?? doc.beneficiary?.memberId ?? doc.claim?.memberId ?? null;
 
-  const isOwner = session.user.role === "ADMIN" || (ownerMemberId && ownerMemberId === session.user.memberId);
+  // Meeting notes aren't owned by a single member — every signed-in member
+  // is meant to be able to see them, matching the meetings list itself.
+  const isMeetingNotes = doc.ownerType === "MEETING_NOTES";
+
+  const isOwner =
+    isMeetingNotes || session.user.role === "ADMIN" || (ownerMemberId && ownerMemberId === session.user.memberId);
   if (!isOwner) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   const upstream = await fetchPrivateFile(doc.storageKey);

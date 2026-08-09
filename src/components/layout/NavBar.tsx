@@ -16,6 +16,7 @@ import {
   ScrollText,
   User,
   ShieldCheck,
+  Calendar,
 } from "lucide-react";
 import type { AdminGroup } from "@prisma/client";
 
@@ -27,6 +28,7 @@ const MEMBER_LINKS = [
   { href: "/contributions", label: "Contributions", icon: <Banknote className={iconClass} /> },
   { href: "/claims", label: "Claims", icon: <FileCheck2 className={iconClass} /> },
   { href: "/committee", label: "Committee", icon: <UsersRound className={iconClass} /> },
+  { href: "/meetings", label: "Meetings", icon: <Calendar className={iconClass} /> },
   { href: "/profile", label: "Profile", icon: <User className={iconClass} /> },
 ];
 
@@ -37,6 +39,7 @@ const ADMIN_LINKS: { href: string; label: string; icon: React.ReactNode; groups?
   { href: "/admin/rates", label: "Rates", icon: <Percent className={iconClass} />, groups: ["SUPER_ADMIN"] },
   { href: "/admin/claims", label: "Claims", icon: <FileCheck2 className={iconClass} /> },
   { href: "/admin/committee", label: "Committee", icon: <UsersRound className={iconClass} /> },
+  { href: "/admin/meetings", label: "Meetings", icon: <Calendar className={iconClass} /> },
   { href: "/admin/expenses", label: "Expenses", icon: <Receipt className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
   { href: "/admin/unallocated-funds", label: "Unallocated Funds", icon: <Coins className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
   { href: "/admin/reports", label: "Reports", icon: <FileBarChart className={iconClass} /> },

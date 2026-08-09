@@ -1,4 +1,4 @@
-import type { MemberStatus, ClaimStatus, BeneficiaryStatus, CommitteeRole } from "@prisma/client";
+import type { MemberStatus, ClaimStatus, BeneficiaryStatus, CommitteeRole, MeetingType } from "@prisma/client";
 
 export const STATUS_LABELS: Record<MemberStatus, string> = {
   ACTIVE: "Active",
@@ -29,6 +29,13 @@ export const COMMITTEE_ROLE_LABELS: Record<CommitteeRole, string> = {
   ADDITIONAL_MEMBER: "Additional Member 1",
   ADDITIONAL_MEMBER_2: "Additional Member 2",
   YOUTH_COORDINATOR: "Youth Coordinator",
+};
+
+export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
+  COMMITTEE_MEETING: "Committee Meeting",
+  QUARTERLY: "Quarterly Meeting",
+  AGM: "AGM",
+  SPECIAL_AGM: "Special AGM",
 };
 
 export const COMMITTEE_ROLE_ORDER: CommitteeRole[] = [

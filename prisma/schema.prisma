@@ -72,6 +72,7 @@ enum DocumentOwner {
   DEATH_CERTIFICATE
   PAYMENT_PROOF
   EXPENSE_PROOF
+  MEETING_NOTES
 }
 
 enum BeneficiaryStatus {
@@ -104,6 +105,13 @@ enum ClaimRateType {
 enum DepositType {
   CASH
   EFT
+}
+
+enum MeetingType {
+  COMMITTEE_MEETING
+  QUARTERLY
+  AGM
+  SPECIAL_AGM
 }
 
 enum AuditAction {
@@ -186,6 +194,7 @@ model Member {
   expensesSpent      Expense[]
   unallocatedFundAllocations UnallocatedFundAllocation[]
   statusHistory      MemberStatusHistory[]
+  meetingsHosted     Meeting[]
 
   // A spouse/partner taking over a deceased member's policy is registered as
   // an entirely new, independent Member record — this is a pure reference
@@ -431,6 +440,25 @@ model UnallocatedFundAllocation {
   @@index([unallocatedFundId])
 }
 
+// ---------- Meetings ----------
+
+model Meeting {
+  id              String      @id @default(cuid())
+  type            MeetingType
+  date            DateTime
+  venue           String
+  hostMemberId    String
+  hostMember      Member      @relation(fields: [hostMemberId], references: [id])
+  createdByUserId String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  documents       Document[]
+
+  @@index([date])
+  @@index([hostMemberId])
+}
+
 // ---------- Documents & Audit ----------
 
 model Document {
@@ -446,6 +474,8 @@ model Document {
   payment           Payment?      @relation(fields: [paymentId], references: [id])
   expenseId         String?
   expense           Expense?      @relation(fields: [expenseId], references: [id])
+  meetingId         String?
+  meeting           Meeting?      @relation(fields: [meetingId], references: [id])
   storageKey        String
   fileName          String
   mimeType          String
@@ -458,6 +488,7 @@ model Document {
   @@index([claimId])
   @@index([paymentId])
   @@index([expenseId])
+  @@index([meetingId])
 }
 
 model AuditLog {

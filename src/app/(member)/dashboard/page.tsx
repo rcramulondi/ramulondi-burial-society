@@ -2,7 +2,8 @@ import { auth } from "@/lib/auth";
 import { getMemberDetail } from "@/server/actions/member";
 import { getMemberContributionSummary } from "@/server/actions/payment";
 import { getMemberPayoutSummary } from "@/server/actions/claim";
-import { CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
+import { listUpcomingMeetings } from "@/server/actions/meeting";
+import { CLAIM_STATUS_LABELS, MEETING_TYPE_LABELS } from "@/lib/statusLabels";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 import { outstandingBalanceClass } from "@/lib/statusColors";
 import { formatDate, formatCurrency } from "@/lib/format";
@@ -13,10 +14,11 @@ export default async function MemberDashboardPage() {
   const session = await auth();
   const memberId = session!.user.memberId!;
 
-  const [member, summary, payoutSummary] = await Promise.all([
+  const [member, summary, payoutSummary, upcomingMeetings] = await Promise.all([
     getMemberDetail(memberId),
     getMemberContributionSummary(memberId),
     getMemberPayoutSummary(memberId),
+    listUpcomingMeetings(),
   ]);
 
   if (!member) return <p>Member record not found.</p>;
@@ -38,6 +40,25 @@ export default async function MemberDashboardPage() {
           <Button href="/claims/new">File a claim</Button>
         </div>
       </div>
+
+      {upcomingMeetings.length > 0 && (
+        <section>
+          <h2 className="font-medium mb-2">Upcoming meetings</h2>
+          <ul className="flex flex-col gap-2">
+            {upcomingMeetings.map((m) => (
+              <li key={m.id} className="border rounded p-3 text-sm">
+                <p className="font-medium">{MEETING_TYPE_LABELS[m.type]}</p>
+                <p className="text-neutral-500">
+                  {formatDate(m.date)} &middot; {m.venue} &middot; Hosted by {m.hostMember.firstName} {m.hostMember.surname}
+                </p>
+              </li>
+            ))}
+          </ul>
+          <Link href="/meetings" className="text-sm text-accent hover:underline mt-2 inline-block">
+            View all meetings &rarr;
+          </Link>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <StatCard
