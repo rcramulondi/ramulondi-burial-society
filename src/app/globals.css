@@ -1,5 +1,5 @@
-@import "tailwindcss";
 @import url('https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;700&family=Barlow+Condensed:wght@400;600&display=swap');
+@import "tailwindcss";
 
 :root {
   /* Industry design system tokens, mapped onto the app's existing variable
@@ -7,7 +7,12 @@
      in the app keeps working — only the values change. */
   --color-navy: #1d1f20;          /* was #0b2a4a — now Industry's --color-text */
   --color-background: #f2f2f3;    /* Industry --color-bg */
-  --color-card: transparent;      /* Industry cards are transparent line drawings */
+  /* Industry's "transparent line drawing" card look only works for a flat
+     card sitting directly on the page background — bg-card is also used by
+     floating/layered surfaces (hamburger dropdown, modals, SearchSelect
+     dropdown, sticky form bars) that must stay opaque or whatever's behind
+     them bleeds through and overlaps the text. Keep it solid. */
+  --color-card: #ffffff;
   --color-accent: #5980a6;        /* Industry --color-accent */
   --color-secondary: #7a7a7d;     /* Industry --color-neutral-600 */
   --color-primary-dark: #416180;  /* Industry --color-accent-700 */
