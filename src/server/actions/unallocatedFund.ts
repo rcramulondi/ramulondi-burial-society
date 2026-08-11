@@ -3,6 +3,7 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdmin, requireAdminGroup } from "@/server/permissions";
 import { recordPaymentWithAllocation } from "@/lib/business/contributionAllocation";
+import { sendProofOfPaymentEmail } from "./notifications";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { formDataToObject } from "@/lib/formData";
@@ -124,6 +125,8 @@ export async function allocateUnallocatedFund(input: unknown): Promise<ActionRes
       performedByUserId: session.user.id,
       metadata: { amount: data.amount, unallocatedFundId: data.unallocatedFundId },
     });
+
+    await sendProofOfPaymentEmail(paymentId, session.user.id);
 
     revalidatePath("/admin/unallocated-funds");
     revalidatePath(`/admin/members/${data.memberId}/payments`);

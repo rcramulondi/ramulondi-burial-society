@@ -5,6 +5,7 @@ import { requireAdmin, requireAdminGroup, requireOwnMemberOrAdmin } from "@/serv
 import { paymentCreateSchema } from "@/lib/validation/schemas";
 import { recordPaymentWithAllocation, getOutstandingBalance } from "@/lib/business/contributionAllocation";
 import { uploadPrivateFile } from "@/lib/storage/blob";
+import { sendProofOfPaymentEmail } from "./notifications";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -55,6 +56,8 @@ export async function recordPayment(
       performedByUserId: session.user.id,
       metadata: { amount: data.amount, category: data.category },
     });
+
+    await sendProofOfPaymentEmail(result.paymentId, session.user.id);
 
     revalidatePath(`/admin/members/${data.memberId}`);
     revalidatePath("/contributions");

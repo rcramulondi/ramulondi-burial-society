@@ -19,6 +19,7 @@ vi.mock("@/server/permissions", () => ({
   requireOwnMemberOrAdmin: vi.fn(),
 }));
 vi.mock("@/lib/audit", () => ({ logAudit: vi.fn() }));
+vi.mock("../notifications", () => ({ sendProofOfPaymentEmail: vi.fn() }));
 vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 vi.mock("@/lib/actionError", () => ({
   toSafeErrorMessage: (_e: unknown, fallback: string) => fallback,

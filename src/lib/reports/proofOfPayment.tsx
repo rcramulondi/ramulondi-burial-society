@@ -24,10 +24,14 @@ const CATEGORY_LABELS: Record<string, string> = {
  * Renders a proof-of-payment receipt from live Payment/PaymentAllocation
  * data on demand (not persisted as a Document row, so it always reflects
  * the current allocation state). Returns a delivery-agnostic Buffer so the
- * download route and a future "email to member" action can both reuse it
- * without touching this function.
+ * download route and the "email to member" action (src/server/actions/
+ * notifications.ts) both reuse it without duplicating this function.
+ *
+ * `includeBreakdown` defaults to true (the existing download route's
+ * behavior, unchanged) — the emailed copy passes false so it shows only the
+ * single full payment amount, never the per-month allocation table.
  */
-export async function generateProofOfPaymentPdf(paymentId: string): Promise<Buffer> {
+export async function generateProofOfPaymentPdf(paymentId: string, includeBreakdown = true): Promise<Buffer> {
   const payment = await prisma.payment.findUniqueOrThrow({
     where: { id: paymentId },
     include: {
@@ -77,7 +81,7 @@ export async function generateProofOfPaymentPdf(paymentId: string): Promise<Buff
           </View>
         )}
 
-        {payment.allocations.length > 0 && (
+        {includeBreakdown && payment.allocations.length > 0 && (
           <View>
             <Text style={styles.label}>Allocation breakdown</Text>
             <View style={styles.table}>
