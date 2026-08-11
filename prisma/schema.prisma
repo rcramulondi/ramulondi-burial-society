@@ -435,6 +435,14 @@ model UnallocatedFund {
   reference        String?
   notes            String?
   recordedByUserId String
+  // Set when an admin identifies this row as a duplicate of another deposit
+  // (e.g. the same bank transaction imported twice). Kept as a flag rather
+  // than deleting outright, since a duplicate may already have real
+  // allocations/Payments against it that must never be destroyed — see
+  // deleteUnallocatedFund vs markUnallocatedFundDuplicate in
+  // src/server/actions/unallocatedFund.ts. Further allocation from a
+  // duplicate-marked deposit is blocked.
+  isDuplicate      Boolean     @default(false)
   createdAt        DateTime    @default(now())
 
   allocations UnallocatedFundAllocation[]
