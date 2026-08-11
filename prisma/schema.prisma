@@ -73,6 +73,7 @@ enum DocumentOwner {
   PAYMENT_PROOF
   EXPENSE_PROOF
   MEETING_NOTES
+  BANK_STATEMENT
 }
 
 enum BeneficiaryStatus {
@@ -123,39 +124,56 @@ enum AuditAction {
   LOGIN_FAILURE
   LOGIN_SUCCESS
   REVEAL_SENSITIVE_FIELD
+  EMAIL_SENT
+}
+
+enum BankAccountType {
+  OPERATING
+  SAVINGS
+}
+
+enum BankTransactionCategory {
+  CONTRIBUTION_MATCHED
+  CONTRIBUTION_UNMATCHED
+  TRANSFER_IN
+  TRANSFER_OUT
+  INTEREST
+  BANK_FEE
+  EXPENSE_PENDING
+  EXPENSE_LINKED
 }
 
 // ---------- Auth ----------
 
 model User {
-  id                  String    @id @default(cuid())
-  email               String?   @unique
-  phone               String?   @unique
-  passwordHash        String
-  role                Role      @default(MEMBER)
-  adminGroup          AdminGroup?
-  disabled            Boolean   @default(false)
-  disabledReason      String?
-  memberId            String?   @unique
-  member              Member?   @relation(fields: [memberId], references: [id])
-  mustChangePassword  Boolean   @default(true)
-  failedLoginCount    Int       @default(0)
-  lockedUntil         DateTime?
-  lastLoginAt         DateTime?
-  createdAt           DateTime  @default(now())
-  updatedAt           DateTime  @updatedAt
+  id                 String      @id @default(cuid())
+  email              String?     @unique
+  phone              String?     @unique
+  passwordHash       String
+  role               Role        @default(MEMBER)
+  adminGroup         AdminGroup?
+  disabled           Boolean     @default(false)
+  disabledReason     String?
+  memberId           String?     @unique
+  member             Member?     @relation(fields: [memberId], references: [id])
+  mustChangePassword Boolean     @default(true)
+  failedLoginCount   Int         @default(0)
+  lockedUntil        DateTime?
+  lastLoginAt        DateTime?
+  createdAt          DateTime    @default(now())
+  updatedAt          DateTime    @updatedAt
 
-  activationTokens    ActivationToken[]
+  activationTokens ActivationToken[]
 }
 
 model ActivationToken {
-  id          String    @id @default(cuid())
-  token       String    @unique
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  expiresAt   DateTime
-  usedAt      DateTime?
-  createdAt   DateTime  @default(now())
+  id        String    @id @default(cuid())
+  token     String    @unique
+  userId    String
+  user      User      @relation(fields: [userId], references: [id])
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
 
   @@index([userId])
 }
@@ -163,46 +181,47 @@ model ActivationToken {
 // ---------- Membership ----------
 
 model Member {
-  id                 String          @id @default(cuid())
-  membershipNo       String          @unique
-  firstName          String
-  surname            String
-  gender             Gender
-  type               MembershipType
-  idNumber           String?         @unique
-  phone              String?
-  email              String?
-  dateJoined          DateTime
-  reinstatementDate  DateTime?
-  deceasedDate       DateTime?
-  terminationDate    DateTime?
-  status             MemberStatus    @default(ACTIVE)
-  statusUpdatedAt    DateTime?
-  packageNote        String?
-  isDraft            Boolean         @default(false)
-  createdAt          DateTime        @default(now())
-  updatedAt          DateTime        @updatedAt
+  id                String         @id @default(cuid())
+  membershipNo      String         @unique
+  firstName         String
+  surname           String
+  gender            Gender
+  type              MembershipType
+  idNumber          String?        @unique
+  phone             String?
+  email             String?
+  dateJoined        DateTime
+  reinstatementDate DateTime?
+  deceasedDate      DateTime?
+  terminationDate   DateTime?
+  status            MemberStatus   @default(ACTIVE)
+  statusUpdatedAt   DateTime?
+  packageNote       String?
+  isDraft           Boolean        @default(false)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
 
-  user               User?
-  beneficiaries      Beneficiary[]
-  payoutNominee      PayoutNominee?
-  payments           Payment[]
-  allocations        PaymentAllocation[]
-  claims             Claim[]
-  documents          Document[]
-  committeeTerms     CommitteeTerm[]
-  expensesSpent      Expense[]
+  user                       User?
+  beneficiaries              Beneficiary[]
+  payoutNominee              PayoutNominee?
+  payments                   Payment[]
+  allocations                PaymentAllocation[]
+  claims                     Claim[]
+  documents                  Document[]
+  committeeTerms             CommitteeTerm[]
+  expensesSpent              Expense[]
   unallocatedFundAllocations UnallocatedFundAllocation[]
-  statusHistory      MemberStatusHistory[]
-  meetingsHosted     Meeting[]
+  statusHistory              MemberStatusHistory[]
+  meetingsHosted             Meeting[]
+  bankTransactions           BankTransaction[]
 
   // A spouse/partner taking over a deceased member's policy is registered as
   // an entirely new, independent Member record — this is a pure reference
   // link between the two records, not a data merge. @unique on the FK side
   // enforces at most one successor per deceased member at the DB level.
-  succeedsMemberId   String?         @unique
-  succeedsMember     Member?         @relation("MemberSuccession", fields: [succeedsMemberId], references: [id])
-  succeededByMember  Member?        @relation("MemberSuccession")
+  succeedsMemberId  String? @unique
+  succeedsMember    Member? @relation("MemberSuccession", fields: [succeedsMemberId], references: [id])
+  succeededByMember Member? @relation("MemberSuccession")
 
   @@index([status])
   @@index([surname])
@@ -225,25 +244,25 @@ model MemberStatusHistory {
 }
 
 model Beneficiary {
-  id            String            @id @default(cuid())
-  memberId      String
-  member        Member            @relation(fields: [memberId], references: [id])
-  firstName     String
-  surname       String
-  idNumber      String?
-  phone         String?
-  email         String?
-  referenceNo   String            @unique
-  relationship  RelationshipType
-  dateOfBirth   DateTime?
-  isDisabled    Boolean           @default(false)
-  status        BeneficiaryStatus @default(ACTIVE)
-  deletedAt     DateTime?
-  createdAt     DateTime          @default(now())
-  updatedAt     DateTime          @updatedAt
+  id           String            @id @default(cuid())
+  memberId     String
+  member       Member            @relation(fields: [memberId], references: [id])
+  firstName    String
+  surname      String
+  idNumber     String?
+  phone        String?
+  email        String?
+  referenceNo  String            @unique
+  relationship RelationshipType
+  dateOfBirth  DateTime?
+  isDisabled   Boolean           @default(false)
+  status       BeneficiaryStatus @default(ACTIVE)
+  deletedAt    DateTime?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
 
-  documents     Document[]
-  claims        Claim[]
+  documents Document[]
+  claims    Claim[]
 
   @@index([memberId])
 }
@@ -307,36 +326,36 @@ model ClaimRate {
 }
 
 model Payment {
-  id                String              @id @default(cuid())
-  memberId          String
-  member            Member              @relation(fields: [memberId], references: [id])
-  category          PaymentCategory
-  amount            Decimal             @db.Decimal(10, 2)
-  paymentDate       DateTime
-  method            String?
-  reference         String?
-  recordedByUserId  String?
-  notes             String?
-  createdAt         DateTime            @default(now())
+  id               String          @id @default(cuid())
+  memberId         String
+  member           Member          @relation(fields: [memberId], references: [id])
+  category         PaymentCategory
+  amount           Decimal         @db.Decimal(10, 2)
+  paymentDate      DateTime
+  method           String?
+  reference        String?
+  recordedByUserId String?
+  notes            String?
+  createdAt        DateTime        @default(now())
 
-  allocations       PaymentAllocation[]
-  documents         Document[]
+  allocations                PaymentAllocation[]
+  documents                  Document[]
   unallocatedFundAllocations UnallocatedFundAllocation[]
 
   @@index([memberId, paymentDate])
 }
 
 model PaymentAllocation {
-  id            String   @id @default(cuid())
-  paymentId     String
-  payment       Payment  @relation(fields: [paymentId], references: [id])
-  memberId      String
-  member        Member   @relation(fields: [memberId], references: [id])
-  fund          Fund
-  year          Int
-  month         Int
-  amount        Decimal  @db.Decimal(10, 2)
-  createdAt     DateTime @default(now())
+  id        String   @id @default(cuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id])
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id])
+  fund      Fund
+  year      Int
+  month     Int
+  amount    Decimal  @db.Decimal(10, 2)
+  createdAt DateTime @default(now())
 
   @@index([memberId, fund, year, month])
 }
@@ -344,31 +363,31 @@ model PaymentAllocation {
 // ---------- Claims ----------
 
 model Claim {
-  id                       String      @id @default(cuid())
-  memberId                 String
-  member                   Member      @relation(fields: [memberId], references: [id])
-  beneficiaryId            String?
-  beneficiary              Beneficiary? @relation(fields: [beneficiaryId], references: [id])
-  dateDeceased             DateTime
-  placeOfBurial            BurialSite  @default(KHALAVHA)
-  payoutRecipientName      String
-  payoutRecipientSurname   String
-  payoutRecipientIdNumber  String
-  payoutRecipientPhone     String
-  payoutRecipientEmail     String?
-  bankName                 String
-  bankAccountNumber        String
-  status                   ClaimStatus @default(PENDING)
-  submittedByUserId        String
-  submittedAt              DateTime    @default(now())
-  reviewedByUserId         String?
-  reviewedAt               DateTime?
-  reviewNotes              String?
-  createdAt                DateTime    @default(now())
-  updatedAt                DateTime    @updatedAt
+  id                      String       @id @default(cuid())
+  memberId                String
+  member                  Member       @relation(fields: [memberId], references: [id])
+  beneficiaryId           String?
+  beneficiary             Beneficiary? @relation(fields: [beneficiaryId], references: [id])
+  dateDeceased            DateTime
+  placeOfBurial           BurialSite   @default(KHALAVHA)
+  payoutRecipientName     String
+  payoutRecipientSurname  String
+  payoutRecipientIdNumber String
+  payoutRecipientPhone    String
+  payoutRecipientEmail    String?
+  bankName                String
+  bankAccountNumber       String
+  status                  ClaimStatus  @default(PENDING)
+  submittedByUserId       String
+  submittedAt             DateTime     @default(now())
+  reviewedByUserId        String?
+  reviewedAt              DateTime?
+  reviewNotes             String?
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
 
-  payout                   ClaimPayout?
-  documents                Document[]
+  payout    ClaimPayout?
+  documents Document[]
 
   @@index([status])
   @@index([memberId])
@@ -376,15 +395,15 @@ model Claim {
 }
 
 model ClaimPayout {
-  id            String   @id @default(cuid())
-  claimId       String   @unique
-  claim         Claim    @relation(fields: [claimId], references: [id])
-  amount        Decimal  @db.Decimal(10, 2)
-  paidDate      DateTime
-  paidTo        String
-  paidByUserId  String
-  notes         String?
-  createdAt     DateTime @default(now())
+  id           String   @id @default(cuid())
+  claimId      String   @unique
+  claim        Claim    @relation(fields: [claimId], references: [id])
+  amount       Decimal  @db.Decimal(10, 2)
+  paidDate     DateTime
+  paidTo       String
+  paidByUserId String
+  notes        String?
+  createdAt    DateTime @default(now())
 }
 
 // ---------- Finance: Expenses & Unallocated Funds ----------
@@ -402,23 +421,23 @@ model Expense {
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
 
-  documents        Document[]
+  documents Document[]
 
   @@index([expenseDate])
   @@index([spentByMemberId])
 }
 
 model UnallocatedFund {
-  id               String        @id @default(cuid())
+  id               String      @id @default(cuid())
   depositType      DepositType
-  amount           Decimal       @db.Decimal(10, 2)
+  amount           Decimal     @db.Decimal(10, 2)
   depositDate      DateTime
   reference        String?
   notes            String?
   recordedByUserId String
-  createdAt        DateTime      @default(now())
+  createdAt        DateTime    @default(now())
 
-  allocations      UnallocatedFundAllocation[]
+  allocations UnallocatedFundAllocation[]
 
   @@index([depositDate])
 }
@@ -453,35 +472,85 @@ model Meeting {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  documents       Document[]
+  documents Document[]
 
   @@index([date])
   @@index([hostMemberId])
 }
 
+// ---------- Bank Statement Reconciliation ----------
+
+model BankStatementImport {
+  id               String          @id @default(cuid())
+  accountType      BankAccountType
+  fileName         String
+  closingBalance   Decimal         @db.Decimal(12, 2)
+  transactionCount Int
+  importedByUserId String
+  importedAt       DateTime        @default(now())
+
+  transactions BankTransaction[]
+  documents    Document[]
+
+  @@index([accountType, importedAt])
+}
+
+// One row per statement line, regardless of category — the complete
+// reconciliation audit trail. `fingerprint` is a stable hash of
+// (accountType, date, description, amount, balance) so re-uploading the same
+// file (or an overlapping date range) is a safe no-op rather than a
+// duplicate. Credits either auto-record a Payment (paymentId) when matched
+// by an exact membership-number reference, or land in the existing
+// UnallocatedFund flow (unallocatedFundId) for manual matching — see
+// src/lib/business/bankStatementImport.ts for the classification logic.
+model BankTransaction {
+  id                String                  @id @default(cuid())
+  importId          String
+  import            BankStatementImport     @relation(fields: [importId], references: [id])
+  accountType       BankAccountType
+  date              DateTime
+  description       String
+  amount            Decimal                 @db.Decimal(12, 2)
+  balance           Decimal                 @db.Decimal(12, 2)
+  category          BankTransactionCategory
+  fingerprint       String                  @unique
+  memberId          String?
+  member            Member?                 @relation(fields: [memberId], references: [id])
+  paymentId         String?
+  unallocatedFundId String?
+  expenseId         String?
+  createdAt         DateTime                @default(now())
+
+  @@index([importId])
+  @@index([accountType, date])
+  @@index([category])
+}
+
 // ---------- Documents & Audit ----------
 
 model Document {
-  id                String        @id @default(cuid())
-  ownerType         DocumentOwner
-  memberId          String?
-  member            Member?       @relation(fields: [memberId], references: [id])
-  beneficiaryId     String?
-  beneficiary       Beneficiary?  @relation(fields: [beneficiaryId], references: [id])
-  claimId           String?
-  claim             Claim?        @relation(fields: [claimId], references: [id])
-  paymentId         String?
-  payment           Payment?      @relation(fields: [paymentId], references: [id])
-  expenseId         String?
-  expense           Expense?      @relation(fields: [expenseId], references: [id])
-  meetingId         String?
-  meeting           Meeting?      @relation(fields: [meetingId], references: [id])
-  storageKey        String
-  fileName          String
-  mimeType          String
-  sizeBytes         Int
-  uploadedByUserId  String
-  createdAt         DateTime      @default(now())
+  id                    String               @id @default(cuid())
+  ownerType             DocumentOwner
+  memberId              String?
+  member                Member?              @relation(fields: [memberId], references: [id])
+  beneficiaryId         String?
+  beneficiary           Beneficiary?         @relation(fields: [beneficiaryId], references: [id])
+  claimId               String?
+  claim                 Claim?               @relation(fields: [claimId], references: [id])
+  paymentId             String?
+  payment               Payment?             @relation(fields: [paymentId], references: [id])
+  expenseId             String?
+  expense               Expense?             @relation(fields: [expenseId], references: [id])
+  meetingId             String?
+  meeting               Meeting?             @relation(fields: [meetingId], references: [id])
+  bankStatementImportId String?
+  bankStatementImport   BankStatementImport? @relation(fields: [bankStatementImportId], references: [id])
+  storageKey            String
+  fileName              String
+  mimeType              String
+  sizeBytes             Int
+  uploadedByUserId      String
+  createdAt             DateTime             @default(now())
 
   @@index([memberId])
   @@index([beneficiaryId])
@@ -489,17 +558,18 @@ model Document {
   @@index([paymentId])
   @@index([expenseId])
   @@index([meetingId])
+  @@index([bankStatementImportId])
 }
 
 model AuditLog {
-  id                 String      @id @default(cuid())
-  entityType         String
-  entityId           String
-  memberId           String?
-  action             AuditAction
-  performedByUserId  String
-  metadata           Json?
-  createdAt          DateTime    @default(now())
+  id                String      @id @default(cuid())
+  entityType        String
+  entityId          String
+  memberId          String?
+  action            AuditAction
+  performedByUserId String
+  metadata          Json?
+  createdAt         DateTime    @default(now())
 
   @@index([entityType, memberId, action, createdAt])
 }

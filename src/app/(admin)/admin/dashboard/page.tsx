@@ -4,12 +4,13 @@ import { MemberStatusBadge } from "@/components/ui/StatusBadge";
 import { projectedForYear, getActiveCountsAndRates } from "@/lib/business/projectedContributions";
 import { getMemberStatusCountsAsOf } from "@/lib/business/memberStatus";
 import { listUnallocatedFunds } from "@/server/actions/unallocatedFund";
+import { getSavingsBalance } from "@/server/actions/bankStatement";
 import { formatCurrency } from "@/lib/format";
 import MemberStatusPieChart from "@/components/charts/MemberStatusPieChart";
 import Card from "@/components/ui/Card";
 import DeltaPill from "@/components/ui/DeltaPill";
 import Link from "next/link";
-import { FileClock, Banknote, HandCoins, Receipt, Coins } from "lucide-react";
+import { FileClock, Banknote, HandCoins, Receipt, Coins, PiggyBank } from "lucide-react";
 import type { MemberStatus } from "@prisma/client";
 
 export default async function AdminDashboardPage({
@@ -22,7 +23,7 @@ export default async function AdminDashboardPage({
   const isConsolidated = yearParam === "consolidated";
   const selectedYear = !isConsolidated && yearParam ? Number(yearParam) : currentYear;
 
-  const [statusCounts, pendingClaims, fundTotals, { activeCounts, rates }, expenses, claimPayouts, unallocatedFunds] = await Promise.all([
+  const [statusCounts, pendingClaims, fundTotals, { activeCounts, rates }, expenses, claimPayouts, unallocatedFunds, savingsBalance] = await Promise.all([
     prisma.member.groupBy({ by: ["status"], _count: true }),
     prisma.claim.count({ where: { status: "PENDING" } }),
     prisma.paymentAllocation.groupBy({ by: ["year", "fund"], _sum: { amount: true } }),
@@ -30,6 +31,7 @@ export default async function AdminDashboardPage({
     prisma.expense.findMany({ select: { amount: true, expenseDate: true } }),
     prisma.claimPayout.findMany({ select: { amount: true, paidDate: true } }),
     listUnallocatedFunds(),
+    getSavingsBalance(),
   ]);
 
   const liveStatusMap = Object.fromEntries(statusCounts.map((s) => [s.status, s._count])) as Record<MemberStatus, number>;
@@ -155,6 +157,12 @@ export default async function AdminDashboardPage({
           <Card className="hover:border-accent transition-colors">
             <p className="text-xs text-neutral-500 flex items-center gap-1.5"><Coins className="w-3.5 h-3.5" /> Unallocated funds</p>
             <p className="text-lg font-semibold mt-1 text-navy">{formatCurrency(unallocatedTotal)}</p>
+          </Card>
+        </Link>
+        <Link href="/admin/bank-statements" className="block">
+          <Card className="hover:border-accent transition-colors">
+            <p className="text-xs text-neutral-500 flex items-center gap-1.5"><PiggyBank className="w-3.5 h-3.5" /> Total savings balance</p>
+            <p className="text-lg font-semibold mt-1 text-navy">{formatCurrency(savingsBalance)}</p>
           </Card>
         </Link>
       </div>

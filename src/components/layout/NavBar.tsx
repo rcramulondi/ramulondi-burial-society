@@ -17,6 +17,7 @@ import {
   User,
   ShieldCheck,
   Calendar,
+  Landmark,
 } from "lucide-react";
 import type { AdminGroup } from "@prisma/client";
 
@@ -42,6 +43,7 @@ const ADMIN_LINKS: { href: string; label: string; icon: React.ReactNode; groups?
   { href: "/admin/meetings", label: "Meetings", icon: <Calendar className={iconClass} /> },
   { href: "/admin/expenses", label: "Expenses", icon: <Receipt className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
   { href: "/admin/unallocated-funds", label: "Unallocated Funds", icon: <Coins className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
+  { href: "/admin/bank-statements", label: "Bank Statements", icon: <Landmark className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
   { href: "/admin/reports", label: "Reports", icon: <FileBarChart className={iconClass} /> },
   { href: "/admin/users", label: "Manage Users", icon: <ShieldCheck className={iconClass} />, groups: ["SUPER_ADMIN"] },
   { href: "/admin/settings", label: "Settings", icon: <Settings className={iconClass} />, groups: ["SUPER_ADMIN"] },

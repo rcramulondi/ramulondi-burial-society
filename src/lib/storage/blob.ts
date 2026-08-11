@@ -2,13 +2,16 @@ import "server-only";
 import { put, del, get } from "@vercel/blob";
 
 const ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "application/pdf"];
+// Browsers report CSV under several different MIME types depending on OS/browser.
+const ALLOWED_CSV_MIME_TYPES = ["text/csv", "application/vnd.ms-excel", "application/csv", "text/plain"];
 const MAX_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 
 export class UploadValidationError extends Error {}
 
-export function assertUploadIsValid(file: { type: string; size: number }): void {
-  if (!ALLOWED_MIME_TYPES.includes(file.type)) {
-    throw new UploadValidationError("Only JPEG, PNG, or PDF files are allowed.");
+export function assertUploadIsValid(file: { type: string; size: number }, allowCsv = false): void {
+  const allowed = allowCsv ? [...ALLOWED_MIME_TYPES, ...ALLOWED_CSV_MIME_TYPES] : ALLOWED_MIME_TYPES;
+  if (!allowed.includes(file.type)) {
+    throw new UploadValidationError(allowCsv ? "Only JPEG, PNG, PDF, or CSV files are allowed." : "Only JPEG, PNG, or PDF files are allowed.");
   }
   if (file.size > MAX_SIZE_BYTES) {
     throw new UploadValidationError("Files must be 5MB or smaller.");
@@ -25,9 +28,10 @@ export function assertUploadIsValid(file: { type: string; size: number }): void 
  */
 export async function uploadPrivateFile(
   file: File,
-  keyPrefix: string
+  keyPrefix: string,
+  options?: { allowCsv?: boolean }
 ): Promise<{ storageKey: string; fileName: string; mimeType: string; sizeBytes: number }> {
-  assertUploadIsValid(file);
+  assertUploadIsValid(file, options?.allowCsv);
 
   const pathname = `${keyPrefix}/${crypto.randomUUID()}-${file.name}`;
   const blob = await put(pathname, file, {
