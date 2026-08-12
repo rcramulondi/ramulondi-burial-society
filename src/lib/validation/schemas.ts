@@ -134,5 +134,10 @@ export const claimPayoutSchema = z.object({
   claimId: z.string().min(1),
   paidDate: z.coerce.date(),
   paidTo: z.string().trim().min(1),
+  // Required here (unlike claimCreateSchema's optional payoutRecipientEmail)
+  // so a proof-of-payment email can always be sent once a payout is
+  // recorded — the admin supplies/corrects it at payout time if it wasn't
+  // captured when the claim was originally filed.
+  payoutRecipientEmail: emailSchema,
   notes: z.string().trim().optional(),
 });

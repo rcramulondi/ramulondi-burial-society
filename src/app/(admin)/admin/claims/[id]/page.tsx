@@ -96,6 +96,13 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
             <input type="hidden" name="claimId" value={claim.id} />
             <Field label="Paid date" name="paidDate" type="date" required />
             <Field label="Paid to" name="paidTo" defaultValue={`${claim.payoutRecipientName} ${claim.payoutRecipientSurname}`} required />
+            <Field
+              label="Claimant email (proof of payment will be sent here)"
+              name="payoutRecipientEmail"
+              type="email"
+              defaultValue={claim.payoutRecipientEmail ?? ""}
+              required
+            />
             <Field label="Notes" name="notes" />
           </ActionForm>
         </section>
@@ -104,9 +111,12 @@ export default async function AdminClaimDetailPage({ params }: { params: Promise
       {claim.payout && (
         <section>
           <h2 className="font-medium mb-2">Payout recorded</h2>
-          <p className="text-sm">
+          <p className="text-sm mb-2">
             {formatCurrency(claim.payout.amount)} paid to {claim.payout.paidTo} on {formatDate(claim.payout.paidDate)}
           </p>
+          <a href={`/api/reports/claim-payout/${claim.id}`} target="_blank" className="underline text-sm">
+            Download proof of payment
+          </a>
         </section>
       )}
     </div>

@@ -90,9 +90,14 @@ function ClaimCard({
       <p>Status: <span className="font-medium">{CLAIM_STATUS_LABELS[claim.status]}</span></p>
       <p className="text-neutral-500">Date deceased: {formatDate(claim.dateDeceased)}</p>
       {claim.payout && (
-        <p className="text-neutral-500">
-          Paid {formatCurrency(claim.payout.amount as number)} on {formatDate(claim.payout.paidDate)}
-        </p>
+        <>
+          <p className="text-neutral-500">
+            Paid {formatCurrency(claim.payout.amount as number)} on {formatDate(claim.payout.paidDate)}
+          </p>
+          <a href={`/api/reports/claim-payout/${claim.id}`} target="_blank" className="underline text-xs">
+            Download proof of payment
+          </a>
+        </>
       )}
 
       {deathCert ? (

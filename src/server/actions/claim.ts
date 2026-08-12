@@ -8,6 +8,7 @@ import { getOutstandingBalance } from "@/lib/business/contributionAllocation";
 import { refreshMemberStatus } from "@/lib/business/memberStatus";
 import { applyBeneficiaryStatusTransition } from "./beneficiary";
 import { uploadPrivateFile } from "@/lib/storage/blob";
+import { sendClaimNotificationEmail, sendClaimPayoutProofEmail } from "./notifications";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -93,6 +94,8 @@ export async function submitClaim(input: unknown, deathCertificateFile?: File): 
       action: "CREATE",
       performedByUserId: session.user.id,
     });
+
+    await sendClaimNotificationEmail(claim.id, session.user.id);
 
     revalidatePath("/claims");
     revalidatePath("/admin/claims");
@@ -202,7 +205,12 @@ export async function recordClaimPayout(input: unknown): Promise<ActionResult<{ 
           paidByUserId: session.user.id,
         },
       });
-      await tx.claim.update({ where: { id: data.claimId }, data: { status: "PAID" } });
+      // Persists the (required, possibly corrected/supplied-here) claimant
+      // email onto the claim so it's on record, not just used for this send.
+      await tx.claim.update({
+        where: { id: data.claimId },
+        data: { status: "PAID", payoutRecipientEmail: data.payoutRecipientEmail },
+      });
       return p;
     });
 
@@ -214,6 +222,8 @@ export async function recordClaimPayout(input: unknown): Promise<ActionResult<{ 
       performedByUserId: session.user.id,
       metadata: { amount, paidTo: data.paidTo },
     });
+
+    await sendClaimPayoutProofEmail(data.claimId, session.user.id);
 
     revalidatePath("/admin/claims");
     return { ok: true, data: { id: payout.id } };
