@@ -1,10 +1,10 @@
 import "server-only";
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
-import { ReportHeader, ReportFooter, REPORT_COLORS } from "./pdfLayout";
+import { ReportHeader, ReportFooter, REPORT_COLORS, getActiveCommitteeRoster } from "./pdfLayout";
 import { getAnnualFinancialSummary } from "./annualFinancialSummary";
 
 const styles = StyleSheet.create({
-  page: { padding: 40, paddingBottom: 90, fontSize: 11, fontFamily: "Helvetica" },
+  page: { padding: 40, paddingBottom: 130, fontSize: 11, fontFamily: "Helvetica" },
   sectionTitle: { fontSize: 13, fontWeight: 700, color: REPORT_COLORS.navy, marginTop: 16, marginBottom: 8 },
   label: { fontSize: 9, color: "#64748b" },
   value: { fontSize: 12, marginTop: 2, marginBottom: 4, color: REPORT_COLORS.navy },
@@ -34,6 +34,7 @@ export async function generateAnnualGeneralReport(year: number): Promise<Buffer>
     totalExpenditure,
     net,
   } = await getAnnualFinancialSummary(year);
+  const committee = await getActiveCommitteeRoster();
 
   const doc = (
     <Document>
@@ -76,7 +77,7 @@ export async function generateAnnualGeneralReport(year: number): Promise<Buffer>
           Net {net >= 0 ? "surplus" : "deficit"} for {year}: R {Math.abs(net).toFixed(2)}
         </Text>
 
-        <ReportFooter />
+        <ReportFooter committee={committee} />
       </Page>
     </Document>
   );

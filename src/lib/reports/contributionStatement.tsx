@@ -1,10 +1,10 @@
 import "server-only";
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
-import { ReportHeader, ReportFooter, REPORT_COLORS } from "./pdfLayout";
+import { ReportHeader, ReportFooter, REPORT_COLORS, getActiveCommitteeRoster } from "./pdfLayout";
 
 const styles = StyleSheet.create({
-  page: { padding: 40, paddingBottom: 90, fontSize: 11, fontFamily: "Helvetica" },
+  page: { padding: 40, paddingBottom: 130, fontSize: 11, fontFamily: "Helvetica" },
   label: { fontSize: 9, color: "#64748b" },
   value: { fontSize: 12, marginTop: 2, marginBottom: 10, color: REPORT_COLORS.navy },
   section: { marginBottom: 4 },
@@ -20,9 +20,10 @@ const MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Se
 
 /** A member's own annual statement of contributions, by month and fund. */
 export async function generateContributionStatement(memberId: string, year: number): Promise<Buffer> {
-  const [member, allocations] = await Promise.all([
+  const [member, allocations, committee] = await Promise.all([
     prisma.member.findUniqueOrThrow({ where: { id: memberId } }),
     prisma.paymentAllocation.findMany({ where: { memberId, year }, orderBy: { month: "asc" } }),
+    getActiveCommitteeRoster(),
   ]);
 
   const rows = Array.from({ length: 12 }, (_, i) => {
@@ -68,7 +69,7 @@ export async function generateContributionStatement(memberId: string, year: numb
           </View>
         </View>
 
-        <ReportFooter />
+        <ReportFooter committee={committee} />
       </Page>
     </Document>
   );

@@ -1,10 +1,10 @@
 import "server-only";
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
-import { ReportHeader, ReportFooter, REPORT_COLORS } from "./pdfLayout";
+import { ReportHeader, ReportFooter, REPORT_COLORS, getActiveCommitteeRoster } from "./pdfLayout";
 
 const styles = StyleSheet.create({
-  page: { padding: 40, paddingBottom: 90, fontSize: 10, fontFamily: "Helvetica" },
+  page: { padding: 40, paddingBottom: 130, fontSize: 10, fontFamily: "Helvetica" },
   label: { fontSize: 9, color: "#64748b", marginBottom: 12 },
   table: { marginTop: 8, borderTopWidth: 1, borderTopColor: REPORT_COLORS.navy },
   tableHeader: { flexDirection: "row", paddingVertical: 6, borderBottomWidth: 1, borderBottomColor: REPORT_COLORS.navy },
@@ -16,9 +16,10 @@ const styles = StyleSheet.create({
 
 /** Admin-only: every member's contribution total for the year, in one statement. */
 export async function generateSocietyStatement(year: number): Promise<Buffer> {
-  const [members, allocations] = await Promise.all([
+  const [members, allocations, committee] = await Promise.all([
     prisma.member.findMany({ orderBy: { surname: "asc" } }),
     prisma.paymentAllocation.findMany({ where: { year } }),
+    getActiveCommitteeRoster(),
   ]);
 
   const rows = members
@@ -64,7 +65,7 @@ export async function generateSocietyStatement(year: number): Promise<Buffer> {
           </View>
         </View>
 
-        <ReportFooter />
+        <ReportFooter committee={committee} />
       </Page>
     </Document>
   );

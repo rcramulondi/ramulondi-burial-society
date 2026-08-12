@@ -1,10 +1,10 @@
 import "server-only";
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { prisma } from "@/lib/prisma";
-import { ReportHeader, ReportFooter } from "./pdfLayout";
+import { ReportHeader, ReportFooter, getActiveCommitteeRoster } from "./pdfLayout";
 
 const styles = StyleSheet.create({
-  page: { padding: 40, paddingBottom: 90, fontSize: 11, fontFamily: "Helvetica" },
+  page: { padding: 40, paddingBottom: 130, fontSize: 11, fontFamily: "Helvetica" },
   label: { fontSize: 9, color: "#64748b" },
   value: { fontSize: 12, marginTop: 2, marginBottom: 10, color: "#073B4C" },
   section: { marginBottom: 4 },
@@ -32,13 +32,16 @@ const CATEGORY_LABELS: Record<string, string> = {
  * single full payment amount, never the per-month allocation table.
  */
 export async function generateProofOfPaymentPdf(paymentId: string, includeBreakdown = true): Promise<Buffer> {
-  const payment = await prisma.payment.findUniqueOrThrow({
-    where: { id: paymentId },
-    include: {
-      member: true,
-      allocations: { orderBy: [{ year: "asc" }, { month: "asc" }] },
-    },
-  });
+  const [payment, committee] = await Promise.all([
+    prisma.payment.findUniqueOrThrow({
+      where: { id: paymentId },
+      include: {
+        member: true,
+        allocations: { orderBy: [{ year: "asc" }, { month: "asc" }] },
+      },
+    }),
+    getActiveCommitteeRoster(),
+  ]);
 
   const doc = (
     <Document>
@@ -101,7 +104,7 @@ export async function generateProofOfPaymentPdf(paymentId: string, includeBreakd
           </View>
         )}
 
-        <ReportFooter />
+        <ReportFooter committee={committee} />
       </Page>
     </Document>
   );

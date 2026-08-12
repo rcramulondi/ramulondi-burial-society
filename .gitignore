@@ -40,6 +40,7 @@ yarn-error.log*
 # source data (contains PII, never commit)
 *.xlsx
 *.csv
+*.docx
 /data/
 
 # typescript

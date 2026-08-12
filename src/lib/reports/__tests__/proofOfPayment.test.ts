@@ -1,10 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 
 const findUniqueOrThrow = vi.fn();
+const committeeTermFindMany = vi.fn().mockResolvedValue([]);
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/prisma", () => ({
-  prisma: { payment: { findUniqueOrThrow } },
+  prisma: { payment: { findUniqueOrThrow }, committeeTerm: { findMany: committeeTermFindMany } },
 }));
 
 const { generateProofOfPaymentPdf } = await import("../proofOfPayment");
