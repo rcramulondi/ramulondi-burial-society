@@ -1,19 +1,24 @@
-import { listRecentPayments } from "@/server/actions/payment";
+import { listRecentPayments, countRecentPayments } from "@/server/actions/payment";
 import { prisma } from "@/lib/prisma";
 import Card from "@/components/ui/Card";
+import Pagination from "@/components/ui/Pagination";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
 import Link from "next/link";
 
 export default async function AdminReportsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ search?: string }>;
+  searchParams: Promise<{ search?: string; page?: string }>;
 }) {
-  const { search } = await searchParams;
-  const [payments, allocationYears] = await Promise.all([
-    listRecentPayments({ search }),
+  const { search, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
+  const [payments, total, allocationYears] = await Promise.all([
+    listRecentPayments({ search, page }),
+    countRecentPayments({ search }),
     prisma.paymentAllocation.findMany({ distinct: ["year"], select: { year: true }, orderBy: { year: "desc" } }),
   ]);
+  const totalPages = totalPageCount(total, 20);
   const currentYear = new Date().getFullYear();
   const years = Array.from(new Set([currentYear, ...allocationYears.map((a) => a.year)])).sort((a, b) => b - a);
 
@@ -64,9 +69,9 @@ export default async function AdminReportsPage({
       </Card>
 
       <Card>
-        <h2 className="font-medium mb-2 text-navy">Proof of payment</h2>
+        <h2 className="font-medium mb-2 text-navy">Proof of payment ({total})</h2>
         <p className="text-sm text-neutral-500 mb-4">
-          Download a proof-of-payment receipt for any recorded payment. Showing the 50 most recent.
+          Download a proof-of-payment receipt for any recorded payment.
         </p>
 
         <form className="flex gap-2 text-sm mb-4">
@@ -117,6 +122,9 @@ export default async function AdminReportsPage({
               )}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4">
+          <Pagination page={page} totalPages={totalPages} basePath="/admin/reports" params={{ search }} />
         </div>
       </Card>
     </div>

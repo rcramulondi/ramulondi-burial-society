@@ -1,20 +1,30 @@
 import { auth } from "@/lib/auth";
-import { listExpenses, listCommitteeEligibleMembers, resolveApprovingCommitteeRole, createExpense } from "@/server/actions/expense";
+import { listExpenses, countExpenses, listCommitteeEligibleMembers, resolveApprovingCommitteeRole, createExpense } from "@/server/actions/expense";
 import { COMMITTEE_ROLE_LABELS, COMMITTEE_ROLE_ORDER } from "@/lib/statusLabels";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
 import FormKey from "@/components/forms/FormKey";
 import Card from "@/components/ui/Card";
+import Pagination from "@/components/ui/Pagination";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
 
-export default async function AdminExpensesPage() {
+export default async function AdminExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string }>;
+}) {
+  const { search, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
   const session = await auth();
-  const [expenses, eligibleMembers, autoRole] = await Promise.all([
-    listExpenses(),
+  const [expenses, total, eligibleMembers, autoRole] = await Promise.all([
+    listExpenses({ search, page }),
+    countExpenses({ search }),
     listCommitteeEligibleMembers(),
     resolveApprovingCommitteeRole(session?.user.memberId),
   ]);
+  const totalPages = totalPageCount(total, 20);
 
   return (
     <div className="flex flex-col gap-8">
@@ -63,7 +73,18 @@ export default async function AdminExpensesPage() {
       </Card>
 
       <Card>
-        <h2 className="font-medium mb-4 text-navy">Recorded expenses</h2>
+        <h2 className="font-medium mb-4 text-navy">Recorded expenses ({total})</h2>
+        <form className="flex gap-2 text-sm mb-4">
+          <input
+            name="search"
+            defaultValue={search}
+            placeholder="Search description or spent-by name"
+            className="border border-slate-300 rounded px-3 py-2 bg-white"
+          />
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+            Search
+          </button>
+        </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -98,6 +119,9 @@ export default async function AdminExpensesPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4">
+          <Pagination page={page} totalPages={totalPages} basePath="/admin/expenses" params={{ search }} />
         </div>
       </Card>
     </div>

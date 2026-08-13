@@ -9,6 +9,7 @@ import { revalidatePath } from "next/cache";
 import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import { z } from "zod";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
 import type { ActionResult } from "./member";
 
 const unallocatedFundCreateSchema = z.object({
@@ -231,16 +232,31 @@ export async function deleteUnallocatedFund(input: unknown): Promise<ActionResul
   }
 }
 
-export async function listUnallocatedFunds() {
+const UNALLOCATED_FUNDS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+function unallocatedFundsWhere(query?: { search?: string }) {
+  return query?.search ? { reference: { contains: query.search, mode: "insensitive" as const } } : {};
+}
+
+export async function listUnallocatedFunds(query?: { search?: string; page?: number }) {
   await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
   const funds = await prisma.unallocatedFund.findMany({
+    where: unallocatedFundsWhere(query),
     include: { allocations: { include: { member: true } } },
-    orderBy: { depositDate: "desc" },
+    orderBy: [{ depositDate: "desc" }, { id: "asc" }],
+    skip: paginationSkip(page, UNALLOCATED_FUNDS_PAGE_SIZE),
+    take: UNALLOCATED_FUNDS_PAGE_SIZE,
   });
   return funds.map((f) => {
     const allocatedAmount = f.allocations.reduce((sum, a) => sum + Number(a.amount), 0);
     return { ...f, allocatedAmount, remaining: Number(f.amount) - allocatedAmount };
   });
+}
+
+export async function countUnallocatedFunds(query?: { search?: string }) {
+  await requireAdmin();
+  return prisma.unallocatedFund.count({ where: unallocatedFundsWhere(query) });
 }
 
 export async function recordUnallocatedFundForm(formData: FormData) {

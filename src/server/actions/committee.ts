@@ -9,6 +9,7 @@ import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import { z } from "zod";
 import { CommitteeRole } from "@prisma/client";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
 import type { ActionResult } from "./member";
 
 const assignCommitteeRoleSchema = z.object({
@@ -72,12 +73,36 @@ export async function listCurrentCommitteeHolders() {
   });
 }
 
-export async function listCommitteeHistory() {
+const COMMITTEE_HISTORY_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+function committeeHistoryWhere(query?: { search?: string }) {
+  return query?.search
+    ? {
+        member: {
+          OR: [
+            { firstName: { contains: query.search, mode: "insensitive" as const } },
+            { surname: { contains: query.search, mode: "insensitive" as const } },
+          ],
+        },
+      }
+    : {};
+}
+
+export async function listCommitteeHistory(query?: { search?: string; page?: number }) {
   await requireAuth();
+  const page = Math.max(1, query?.page ?? 1);
   return prisma.committeeTerm.findMany({
+    where: committeeHistoryWhere(query),
     include: { member: true },
-    orderBy: { startDate: "desc" },
+    orderBy: [{ startDate: "desc" }, { id: "asc" }],
+    skip: paginationSkip(page, COMMITTEE_HISTORY_PAGE_SIZE),
+    take: COMMITTEE_HISTORY_PAGE_SIZE,
   });
+}
+
+export async function countCommitteeHistory(query?: { search?: string }) {
+  await requireAuth();
+  return prisma.committeeTerm.count({ where: committeeHistoryWhere(query) });
 }
 
 export async function assignCommitteeRoleForm(formData: FormData) {

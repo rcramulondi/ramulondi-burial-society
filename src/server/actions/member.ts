@@ -249,7 +249,7 @@ export async function listMembers(query?: { search?: string; status?: string; pa
   const page = Math.max(1, query?.page ?? 1);
   return prisma.member.findMany({
     where: membersWhere(query),
-    orderBy: { surname: "asc" },
+    orderBy: [{ surname: "asc" }, { id: "asc" }],
     skip: (page - 1) * MEMBERS_PAGE_SIZE,
     take: MEMBERS_PAGE_SIZE,
   });

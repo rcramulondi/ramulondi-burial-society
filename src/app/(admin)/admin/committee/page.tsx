@@ -1,22 +1,32 @@
 import { prisma } from "@/lib/prisma";
-import { listCurrentCommitteeHolders, listCommitteeHistory, assignCommitteeRoleForm } from "@/server/actions/committee";
+import { listCurrentCommitteeHolders, listCommitteeHistory, countCommitteeHistory, assignCommitteeRoleForm } from "@/server/actions/committee";
 import { COMMITTEE_ROLE_LABELS, COMMITTEE_ROLE_ORDER } from "@/lib/statusLabels";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
 import Card from "@/components/ui/Card";
 import SearchSelect from "@/components/ui/SearchSelect";
+import Pagination from "@/components/ui/Pagination";
 import { formatDate } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
 
-export default async function AdminCommitteePage() {
-  const [holders, history, eligibleMembers] = await Promise.all([
+export default async function AdminCommitteePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ search?: string; page?: string }>;
+}) {
+  const { search, page: pageParam } = await searchParams;
+  const page = parsePage(pageParam);
+  const [holders, history, historyTotal, eligibleMembers] = await Promise.all([
     listCurrentCommitteeHolders(),
-    listCommitteeHistory(),
+    listCommitteeHistory({ search, page }),
+    countCommitteeHistory({ search }),
     prisma.member.findMany({
       where: { status: { in: ["ACTIVE", "ABOUT_TO_LAPSE"] } },
       orderBy: { surname: "asc" },
     }),
   ]);
+  const totalPages = totalPageCount(historyTotal, 20);
 
   const holderByRole = new Map(holders.map((h) => [h.role, h]));
 
@@ -76,7 +86,18 @@ export default async function AdminCommitteePage() {
       </Card>
 
       <Card>
-        <h2 className="font-medium mb-4 text-navy">History</h2>
+        <h2 className="font-medium mb-4 text-navy">History ({historyTotal})</h2>
+        <form className="flex gap-2 text-sm mb-4">
+          <input
+            name="search"
+            defaultValue={search}
+            placeholder="Search member name"
+            className="border border-slate-300 rounded px-3 py-2 bg-white"
+          />
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+            Search
+          </button>
+        </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -101,6 +122,9 @@ export default async function AdminCommitteePage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4">
+          <Pagination page={page} totalPages={totalPages} basePath="/admin/committee" params={{ search }} />
         </div>
       </Card>
     </div>

@@ -1,7 +1,9 @@
 import { listMembersWithSummary } from "@/server/actions/member";
 import { STATUS_LABELS } from "@/lib/statusLabels";
 import { MemberStatusBadge } from "@/components/ui/StatusBadge";
+import Pagination from "@/components/ui/Pagination";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
 import Link from "next/link";
 
 export default async function AdminMembersPage({
@@ -10,17 +12,9 @@ export default async function AdminMembersPage({
   searchParams: Promise<{ search?: string; status?: string; page?: string }>;
 }) {
   const { search, status, page: pageParam } = await searchParams;
-  const page = Math.max(1, Number(pageParam) || 1);
+  const page = parsePage(pageParam);
   const { members, total, pageSize } = await listMembersWithSummary({ search, status, page });
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  const pageHref = (p: number) => {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (status) params.set("status", status);
-    params.set("page", String(p));
-    return `/admin/members?${params.toString()}`;
-  };
+  const totalPages = totalPageCount(total, pageSize);
 
   return (
     <div className="flex flex-col gap-6">
@@ -99,13 +93,7 @@ export default async function AdminMembersPage({
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <nav className="flex gap-2 text-sm items-center">
-          {page > 1 && <Link href={pageHref(page - 1)} className="text-accent hover:underline">&larr; Previous</Link>}
-          <span className="text-neutral-500">Page {page} of {totalPages}</span>
-          {page < totalPages && <Link href={pageHref(page + 1)} className="text-accent hover:underline">Next &rarr;</Link>}
-        </nav>
-      )}
+      <Pagination page={page} totalPages={totalPages} basePath="/admin/members" params={{ search, status }} />
     </div>
   );
 }

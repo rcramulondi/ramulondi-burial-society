@@ -15,7 +15,8 @@ const ACCOUNT_STATUS_CLASSES: Record<AccountStatus, string> = {
 };
 import InviteButton from "@/components/forms/InviteButton";
 import ActionForm from "@/components/forms/ActionForm";
-import Link from "next/link";
+import Pagination from "@/components/ui/Pagination";
+import { totalPageCount } from "@/lib/pagination";
 
 const ROLE_FILTER_OPTIONS = [
   { value: "MEMBER", label: "Member" },
@@ -34,16 +35,7 @@ export default async function ManageUsersPage({
   const { search, role, status, page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
   const { users, total, pageSize } = await listManageableUsers({ search, role, status, page });
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  const pageHref = (p: number) => {
-    const params = new URLSearchParams();
-    if (search) params.set("search", search);
-    if (role) params.set("role", role);
-    if (status) params.set("status", status);
-    params.set("page", String(p));
-    return `/admin/users?${params.toString()}`;
-  };
+  const totalPages = totalPageCount(total, pageSize);
 
   return (
     <div className="flex flex-col gap-6">
@@ -141,13 +133,7 @@ export default async function ManageUsersPage({
         </table>
       </div>
 
-      {totalPages > 1 && (
-        <nav className="flex gap-2 text-sm items-center">
-          {page > 1 && <Link href={pageHref(page - 1)} className="text-accent hover:underline">&larr; Previous</Link>}
-          <span className="text-neutral-500">Page {page} of {totalPages}</span>
-          {page < totalPages && <Link href={pageHref(page + 1)} className="text-accent hover:underline">Next &rarr;</Link>}
-        </nav>
-      )}
+      <Pagination page={page} totalPages={totalPages} basePath="/admin/users" params={{ search, role, status }} />
     </div>
   );
 }

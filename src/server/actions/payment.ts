@@ -11,6 +11,7 @@ import { revalidatePath } from "next/cache";
 import { z } from "zod";
 import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
 import type { ActionResult } from "./member";
 import type { Fund } from "@prisma/client";
 
@@ -137,24 +138,37 @@ export async function getMemberContributionSummary(memberId: string) {
 /**
  * Recent payments across all members, for the Reports tab landing page.
  */
-export async function listRecentPayments(query?: { search?: string }) {
+const RECENT_PAYMENTS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+function recentPaymentsWhere(query?: { search?: string }) {
+  return query?.search
+    ? {
+        member: {
+          OR: [
+            { firstName: { contains: query.search, mode: "insensitive" as const } },
+            { surname: { contains: query.search, mode: "insensitive" as const } },
+            { membershipNo: { contains: query.search, mode: "insensitive" as const } },
+          ],
+        },
+      }
+    : {};
+}
+
+export async function listRecentPayments(query?: { search?: string; page?: number }) {
   await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
   return prisma.payment.findMany({
-    where: query?.search
-      ? {
-          member: {
-            OR: [
-              { firstName: { contains: query.search, mode: "insensitive" } },
-              { surname: { contains: query.search, mode: "insensitive" } },
-              { membershipNo: { contains: query.search, mode: "insensitive" } },
-            ],
-          },
-        }
-      : undefined,
-    orderBy: { paymentDate: "desc" },
-    take: 50,
+    where: recentPaymentsWhere(query),
+    orderBy: [{ paymentDate: "desc" }, { id: "asc" }],
+    skip: paginationSkip(page, RECENT_PAYMENTS_PAGE_SIZE),
+    take: RECENT_PAYMENTS_PAGE_SIZE,
     include: { member: true },
   });
+}
+
+export async function countRecentPayments(query?: { search?: string }) {
+  await requireAdmin();
+  return prisma.payment.count({ where: recentPaymentsWhere(query) });
 }
 
 /**

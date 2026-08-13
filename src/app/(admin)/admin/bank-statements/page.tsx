@@ -2,15 +2,21 @@ import {
   importBankStatement,
   createExpenseFromBankTransaction,
   listBankStatementImports,
+  countBankStatementImports,
   listBankTransactions,
+  countBankTransactions,
+  listBankTransactionsByCategories,
+  countBankTransactionsByCategories,
   getSavingsBalance,
 } from "@/server/actions/bankStatement";
 import { listCommitteeEligibleMembers } from "@/server/actions/expense";
 import { COMMITTEE_ROLE_LABELS, COMMITTEE_ROLE_ORDER } from "@/lib/statusLabels";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
 import ActionForm from "@/components/forms/ActionForm";
 import FieldLabel from "@/components/forms/FieldLabel";
 import Card from "@/components/ui/Card";
+import Pagination from "@/components/ui/Pagination";
 import Link from "next/link";
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -20,19 +26,38 @@ const CATEGORY_LABELS: Record<string, string> = {
   BANK_FEE: "Bank fee",
 };
 
-export default async function AdminBankStatementsPage() {
-  const [imports, expenseCandidates, transfersIn, transfersOut, fees, interest, unmatched, eligibleMembers, savingsBalance] = await Promise.all([
-    listBankStatementImports(),
+const TRANSFER_FEE_INTEREST_CATEGORIES = ["TRANSFER_IN", "TRANSFER_OUT", "INTEREST", "BANK_FEE"] as const;
+
+export default async function AdminBankStatementsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ importSearch?: string; importPage?: string; txSearch?: string; txPage?: string }>;
+}) {
+  const { importSearch, importPage: importPageParam, txSearch, txPage: txPageParam } = await searchParams;
+  const importPage = parsePage(importPageParam);
+  const txPage = parsePage(txPageParam);
+
+  const [
+    imports,
+    importsTotal,
+    expenseCandidates,
+    transfersFeesInterest,
+    transfersFeesInterestTotal,
+    unmatchedCount,
+    eligibleMembers,
+    savingsBalance,
+  ] = await Promise.all([
+    listBankStatementImports({ search: importSearch, page: importPage }),
+    countBankStatementImports({ search: importSearch }),
     listBankTransactions("EXPENSE_PENDING"),
-    listBankTransactions("TRANSFER_IN"),
-    listBankTransactions("TRANSFER_OUT"),
-    listBankTransactions("BANK_FEE"),
-    listBankTransactions("INTEREST"),
-    listBankTransactions("CONTRIBUTION_UNMATCHED"),
+    listBankTransactionsByCategories([...TRANSFER_FEE_INTEREST_CATEGORIES], { search: txSearch, page: txPage }),
+    countBankTransactionsByCategories([...TRANSFER_FEE_INTEREST_CATEGORIES], { search: txSearch }),
+    countBankTransactions("CONTRIBUTION_UNMATCHED"),
     listCommitteeEligibleMembers(),
     getSavingsBalance(),
   ]);
-  const transfers = [...transfersIn, ...transfersOut];
+  const importTotalPages = totalPageCount(importsTotal, 20);
+  const txTotalPages = totalPageCount(transfersFeesInterestTotal, 20);
 
   return (
     <div className="flex flex-col gap-8">
@@ -46,7 +71,7 @@ export default async function AdminBankStatementsPage() {
         <Link href="/admin/unallocated-funds" className="block">
           <Card className="hover:border-accent transition-colors">
             <p className="text-xs text-neutral-500">Unmatched deposits awaiting manual matching</p>
-            <p className="text-lg font-semibold mt-1 text-navy">{unmatched.length} &rarr; view Unallocated Funds</p>
+            <p className="text-lg font-semibold mt-1 text-navy">{unmatchedCount} &rarr; view Unallocated Funds</p>
           </Card>
         </Link>
       </div>
@@ -74,7 +99,18 @@ export default async function AdminBankStatementsPage() {
       </Card>
 
       <Card>
-        <h2 className="font-medium mb-4 text-navy">Import history</h2>
+        <h2 className="font-medium mb-4 text-navy">Import history ({importsTotal})</h2>
+        <form className="flex gap-2 text-sm mb-4">
+          <input
+            name="importSearch"
+            defaultValue={importSearch}
+            placeholder="Search file name"
+            className="border border-slate-300 rounded px-3 py-2 bg-white"
+          />
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+            Search
+          </button>
+        </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -109,6 +145,15 @@ export default async function AdminBankStatementsPage() {
               )}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4">
+          <Pagination
+            page={importPage}
+            totalPages={importTotalPages}
+            basePath="/admin/bank-statements"
+            pageParam="importPage"
+            params={{ importSearch, txSearch, txPage: txPageParam }}
+          />
         </div>
       </Card>
 
@@ -170,12 +215,23 @@ export default async function AdminBankStatementsPage() {
       </Card>
 
       <Card>
-        <h2 className="font-medium mb-4 text-navy">Transfers, interest &amp; fees</h2>
+        <h2 className="font-medium mb-4 text-navy">Transfers, interest &amp; fees ({transfersFeesInterestTotal})</h2>
         <p className="text-xs text-neutral-500 mb-4">
           Informational only — transfers to/from the savings account and bank-generated interest/fee
           lines aren&apos;t member contributions or committee expenses, so they&apos;re not part of
           either ledger.
         </p>
+        <form className="flex gap-2 text-sm mb-4">
+          <input
+            name="txSearch"
+            defaultValue={txSearch}
+            placeholder="Search description"
+            className="border border-slate-300 rounded px-3 py-2 bg-white"
+          />
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+            Search
+          </button>
+        </form>
         <div className="overflow-x-auto">
           <table className="w-full text-sm border-collapse">
             <thead>
@@ -187,21 +243,28 @@ export default async function AdminBankStatementsPage() {
               </tr>
             </thead>
             <tbody>
-              {[...transfers, ...interest, ...fees]
-                .sort((a, b) => b.date.getTime() - a.date.getTime())
-                .map((t) => (
-                  <tr key={t.id} className="border-b border-slate-100">
-                    <td className="py-1 pr-3">{formatDate(t.date)}</td>
-                    <td className="py-1 pr-3">{CATEGORY_LABELS[t.category] ?? t.category}</td>
-                    <td className="py-1 pr-3">{t.description}</td>
-                    <td className="py-1 pr-3 text-right">{formatCurrency(t.amount)}</td>
-                  </tr>
-                ))}
-              {transfers.length === 0 && interest.length === 0 && fees.length === 0 && (
+              {transfersFeesInterest.map((t) => (
+                <tr key={t.id} className="border-b border-slate-100">
+                  <td className="py-1 pr-3">{formatDate(t.date)}</td>
+                  <td className="py-1 pr-3">{CATEGORY_LABELS[t.category] ?? t.category}</td>
+                  <td className="py-1 pr-3">{t.description}</td>
+                  <td className="py-1 pr-3 text-right">{formatCurrency(t.amount)}</td>
+                </tr>
+              ))}
+              {transfersFeesInterest.length === 0 && (
                 <tr><td colSpan={4} className="py-2 text-neutral-500">None recorded yet.</td></tr>
               )}
             </tbody>
           </table>
+        </div>
+        <div className="mt-4">
+          <Pagination
+            page={txPage}
+            totalPages={txTotalPages}
+            basePath="/admin/bank-statements"
+            pageParam="txPage"
+            params={{ txSearch, importSearch, importPage: importPageParam }}
+          />
         </div>
       </Card>
     </div>

@@ -1,7 +1,8 @@
-import { listMeetings, createMeetingForm, uploadMeetingNotes } from "@/server/actions/meeting";
+import { listMeetings, listPastMeetings, countPastMeetings, createMeetingForm, uploadMeetingNotes } from "@/server/actions/meeting";
 import { prisma } from "@/lib/prisma";
 import { MEETING_TYPE_LABELS } from "@/lib/statusLabels";
 import { formatDate } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
 import ActionForm from "@/components/forms/ActionForm";
 import Field from "@/components/forms/Field";
 import FieldLabel from "@/components/forms/FieldLabel";
@@ -9,28 +10,32 @@ import FormKey from "@/components/forms/FormKey";
 import Card from "@/components/ui/Card";
 import SearchSelect from "@/components/ui/SearchSelect";
 import MeetingCalendar from "@/components/ui/MeetingCalendar";
+import Pagination from "@/components/ui/Pagination";
 
 const MEETING_TYPES = ["COMMITTEE_MEETING", "QUARTERLY", "AGM", "SPECIAL_AGM"] as const;
 
 export default async function AdminMeetingsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>;
+  searchParams: Promise<{ month?: string; pastSearch?: string; pastPage?: string }>;
 }) {
-  const { month: monthParam } = await searchParams;
+  const { month: monthParam, pastSearch, pastPage: pastPageParam } = await searchParams;
   const now = new Date();
   const [yearStr, monthStr] = (monthParam ?? "").split("-");
   const year = Number.isInteger(Number(yearStr)) && yearStr ? Number(yearStr) : now.getUTCFullYear();
   const month = Number.isInteger(Number(monthStr)) && monthStr ? Number(monthStr) : now.getUTCMonth() + 1;
+  const pastPage = parsePage(pastPageParam);
 
-  const [meetings, members] = await Promise.all([
+  const [meetings, members, past, pastTotal] = await Promise.all([
     listMeetings(),
     prisma.member.findMany({ orderBy: { surname: "asc" } }),
+    listPastMeetings({ search: pastSearch, page: pastPage }),
+    countPastMeetings({ search: pastSearch }),
   ]);
+  const pastTotalPages = totalPageCount(pastTotal, 20);
 
   const today = new Date();
   const upcoming = meetings.filter((m) => m.date >= today).sort((a, b) => a.date.getTime() - b.date.getTime());
-  const past = meetings.filter((m) => m.date < today);
 
   return (
     <div className="flex flex-col gap-8">
@@ -76,8 +81,28 @@ export default async function AdminMeetingsPage({
       </Card>
 
       <Card>
-        <h2 className="font-medium mb-4 text-navy">Past meetings</h2>
+        <h2 className="font-medium mb-4 text-navy">Past meetings ({pastTotal})</h2>
+        <form className="flex gap-2 text-sm mb-4">
+          <input
+            name="pastSearch"
+            defaultValue={pastSearch}
+            placeholder="Search venue or host name"
+            className="border border-slate-300 rounded px-3 py-2 bg-white"
+          />
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+            Search
+          </button>
+        </form>
         <MeetingList meetings={past} emptyLabel="No past meetings on record." />
+        <div className="mt-4">
+          <Pagination
+            page={pastPage}
+            totalPages={pastTotalPages}
+            basePath="/admin/meetings"
+            pageParam="pastPage"
+            params={{ pastSearch }}
+          />
+        </div>
       </Card>
     </div>
   );

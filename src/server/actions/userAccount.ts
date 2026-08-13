@@ -3,38 +3,81 @@
 import { prisma } from "@/lib/prisma";
 import { requireAdminGroup } from "@/server/permissions";
 import { refreshMemberStatus } from "@/lib/business/memberStatus";
-import { accountStatus } from "@/lib/accountStatus";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { toSafeErrorMessage } from "@/lib/actionError";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
+import type { AdminGroup } from "@prisma/client";
 import type { ActionResult } from "./member";
 
-const MANAGE_USERS_PAGE_SIZE = 10;
+const MANAGE_USERS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+/**
+ * Mirrors src/lib/accountStatus.ts's derivation as a Prisma `where`, so
+ * status filtering happens at the DB level instead of in-memory.
+ */
+function manageUsersWhere(query?: { search?: string; role?: string; status?: string }) {
+  const now = new Date();
+
+  const searchFilter = query?.search
+    ? {
+        OR: [
+          { firstName: { contains: query.search, mode: "insensitive" as const } },
+          { surname: { contains: query.search, mode: "insensitive" as const } },
+          { membershipNo: { contains: query.search, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+
+  const roleFilter = !query?.role
+    ? {}
+    : query.role === "MEMBER"
+      ? { OR: [{ user: { is: null } }, { user: { is: { role: "MEMBER" as const } } }] }
+      : { user: { is: { role: "ADMIN" as const, adminGroup: query.role as AdminGroup } } };
+
+  const statusFilter =
+    query?.status === "No account"
+      ? { user: { is: null } }
+      : query?.status === "Disabled"
+        ? { user: { is: { disabled: true } } }
+        : query?.status === "Locked"
+          ? { user: { is: { disabled: false, lockedUntil: { gt: now } } } }
+          : query?.status === "Active"
+            ? { user: { is: { disabled: false, OR: [{ lockedUntil: null }, { lockedUntil: { lte: now } }] } } }
+            : {};
+
+  return { AND: [searchFilter, roleFilter, statusFilter] };
+}
 
 /**
  * Every member's account status, admin assignment, and current committee
  * position — powers the Manage Users screen. Committee position is shown as
  * informational context only; it has no bearing on admin eligibility (admin
- * roles are entirely independent of committee membership). Filters, then
- * paginates, in-memory: this app's membership is small enough (low hundreds)
- * that fetching the full list once per request and slicing is simpler than
- * building the equivalent relational Prisma `where` for a computed field
- * like account status (which depends on comparing `lockedUntil` to "now").
+ * roles are entirely independent of committee membership). Committee terms
+ * are looked up only for the current page's members, not the whole roster.
  */
 export async function listManageableUsers(query?: { search?: string; role?: string; status?: string; page?: number }) {
   await requireAdminGroup("SUPER_ADMIN");
+  const page = Math.max(1, query?.page ?? 1);
+  const where = manageUsersWhere(query);
 
-  const [members, activeTerms] = await Promise.all([
+  const [members, total] = await Promise.all([
     prisma.member.findMany({
+      where,
       include: { user: true },
-      orderBy: { surname: "asc" },
+      orderBy: [{ surname: "asc" }, { id: "asc" }],
+      skip: paginationSkip(page, MANAGE_USERS_PAGE_SIZE),
+      take: MANAGE_USERS_PAGE_SIZE,
     }),
-    prisma.committeeTerm.findMany({ where: { endDate: null } }),
+    prisma.member.count({ where }),
   ]);
 
+  const activeTerms = await prisma.committeeTerm.findMany({
+    where: { endDate: null, memberId: { in: members.map((m) => m.id) } },
+  });
   const termByMember = new Map(activeTerms.map((t) => [t.memberId, t]));
 
-  let rows = members.map((m) => ({
+  const users = members.map((m) => ({
     id: m.id,
     firstName: m.firstName,
     surname: m.surname,
@@ -43,25 +86,6 @@ export async function listManageableUsers(query?: { search?: string; role?: stri
     user: m.user,
     committeeRole: termByMember.get(m.id)?.role ?? null,
   }));
-
-  if (query?.search) {
-    const s = query.search.trim().toLowerCase();
-    rows = rows.filter(
-      (r) => `${r.firstName} ${r.surname}`.toLowerCase().includes(s) || r.membershipNo.toLowerCase().includes(s)
-    );
-  }
-  if (query?.role) {
-    rows = rows.filter((r) =>
-      query.role === "MEMBER" ? r.user?.role !== "ADMIN" : r.user?.role === "ADMIN" && r.user.adminGroup === query.role
-    );
-  }
-  if (query?.status) {
-    rows = rows.filter((r) => accountStatus(r.user) === query.status);
-  }
-
-  const total = rows.length;
-  const page = Math.max(1, query?.page ?? 1);
-  const users = rows.slice((page - 1) * MANAGE_USERS_PAGE_SIZE, page * MANAGE_USERS_PAGE_SIZE);
 
   return { users, total, page, pageSize: MANAGE_USERS_PAGE_SIZE };
 }

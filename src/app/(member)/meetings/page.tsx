@@ -1,12 +1,26 @@
-import { listMeetings } from "@/server/actions/meeting";
+import { listMeetings, listPastMeetings, countPastMeetings } from "@/server/actions/meeting";
 import { MEETING_TYPE_LABELS } from "@/lib/statusLabels";
 import { formatDate } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
+import Pagination from "@/components/ui/Pagination";
 
-export default async function MemberMeetingsPage() {
-  const meetings = await listMeetings();
+export default async function MemberMeetingsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ pastSearch?: string; pastPage?: string }>;
+}) {
+  const { pastSearch, pastPage: pastPageParam } = await searchParams;
+  const pastPage = parsePage(pastPageParam);
+
+  const [meetings, past, pastTotal] = await Promise.all([
+    listMeetings(),
+    listPastMeetings({ search: pastSearch, page: pastPage }),
+    countPastMeetings({ search: pastSearch }),
+  ]);
+  const pastTotalPages = totalPageCount(pastTotal, 20);
+
   const today = new Date();
   const upcoming = meetings.filter((m) => m.date >= today).sort((a, b) => a.date.getTime() - b.date.getTime());
-  const past = meetings.filter((m) => m.date < today);
 
   return (
     <div className="flex flex-col gap-8">
@@ -18,8 +32,28 @@ export default async function MemberMeetingsPage() {
       </section>
 
       <section>
-        <h2 className="font-medium mb-2">Past meetings</h2>
+        <h2 className="font-medium mb-2">Past meetings ({pastTotal})</h2>
+        <form className="flex gap-2 text-sm mb-3">
+          <input
+            name="pastSearch"
+            defaultValue={pastSearch}
+            placeholder="Search venue or host name"
+            className="border border-slate-300 rounded px-3 py-2 bg-white"
+          />
+          <button type="submit" className="border border-slate-300 rounded px-3 py-2 bg-white hover:bg-slate-50">
+            Search
+          </button>
+        </form>
         <MeetingList meetings={past} emptyLabel="No past meetings on record." />
+        <div className="mt-4">
+          <Pagination
+            page={pastPage}
+            totalPages={pastTotalPages}
+            basePath="/meetings"
+            pageParam="pastPage"
+            params={{ pastSearch }}
+          />
+        </div>
       </section>
     </div>
   );

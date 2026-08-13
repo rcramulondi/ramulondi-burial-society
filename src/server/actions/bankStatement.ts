@@ -17,6 +17,7 @@ import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import { z } from "zod";
 import { CommitteeRole } from "@prisma/client";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
 import type { ActionResult } from "./member";
 import type { BankAccountType, BankTransactionCategory } from "@prisma/client";
 
@@ -262,12 +263,23 @@ export async function createExpenseFromBankTransaction(formData: FormData): Prom
   }
 }
 
-export async function listBankStatementImports() {
+export async function listBankStatementImports(query?: { search?: string; page?: number }) {
   await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
+  const where = query?.search ? { fileName: { contains: query.search, mode: "insensitive" as const } } : {};
   return prisma.bankStatementImport.findMany({
-    orderBy: { importedAt: "desc" },
+    where,
+    orderBy: [{ importedAt: "desc" }, { id: "asc" }],
     include: { documents: true },
+    skip: paginationSkip(page, DEFAULT_PAGE_SIZE),
+    take: DEFAULT_PAGE_SIZE,
   });
+}
+
+export async function countBankStatementImports(query?: { search?: string }) {
+  await requireAdmin();
+  const where = query?.search ? { fileName: { contains: query.search, mode: "insensitive" as const } } : {};
+  return prisma.bankStatementImport.count({ where });
 }
 
 export async function listBankTransactions(category?: BankTransactionCategory) {
@@ -277,6 +289,45 @@ export async function listBankTransactions(category?: BankTransactionCategory) {
     orderBy: { date: "desc" },
     include: { member: true },
   });
+}
+
+export async function countBankTransactions(category?: BankTransactionCategory) {
+  await requireAdmin();
+  return prisma.bankTransaction.count({ where: category ? { category } : undefined });
+}
+
+/**
+ * Paginated/searchable transaction list spanning multiple categories — the
+ * "Transfers, interest & fees" table needs all four non-ledger categories
+ * merged and sorted by date, which a single query supports directly
+ * (avoiding four full, unpaginated listBankTransactions() calls merged in JS).
+ */
+export async function listBankTransactionsByCategories(
+  categories: BankTransactionCategory[],
+  query?: { search?: string; page?: number }
+) {
+  await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
+  const where = {
+    category: { in: categories },
+    ...(query?.search ? { description: { contains: query.search, mode: "insensitive" as const } } : {}),
+  };
+  return prisma.bankTransaction.findMany({
+    where,
+    orderBy: [{ date: "desc" }, { id: "asc" }],
+    include: { member: true },
+    skip: paginationSkip(page, DEFAULT_PAGE_SIZE),
+    take: DEFAULT_PAGE_SIZE,
+  });
+}
+
+export async function countBankTransactionsByCategories(categories: BankTransactionCategory[], query?: { search?: string }) {
+  await requireAdmin();
+  const where = {
+    category: { in: categories },
+    ...(query?.search ? { description: { contains: query.search, mode: "insensitive" as const } } : {}),
+  };
+  return prisma.bankTransaction.count({ where });
 }
 
 /**

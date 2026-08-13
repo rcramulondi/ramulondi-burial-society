@@ -9,6 +9,7 @@ import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import { z } from "zod";
 import { MeetingType } from "@prisma/client";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
 import type { ActionResult } from "./member";
 
 const meetingCreateSchema = z.object({
@@ -107,6 +108,45 @@ export async function listMeetings() {
     include: { hostMember: true, documents: true },
     orderBy: { date: "desc" },
   });
+}
+
+const PAST_MEETINGS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+function pastMeetingsWhere(query?: { search?: string }) {
+  return {
+    date: { lt: new Date() },
+    ...(query?.search
+      ? {
+          OR: [
+            { venue: { contains: query.search, mode: "insensitive" as const } },
+            { hostMember: { firstName: { contains: query.search, mode: "insensitive" as const } } },
+            { hostMember: { surname: { contains: query.search, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+}
+
+/**
+ * Paginated/searchable past-meetings list, separate from listMeetings()
+ * (which stays unpaginated — MeetingCalendar needs the full set to mark
+ * meeting days across whichever month it's showing).
+ */
+export async function listPastMeetings(query?: { search?: string; page?: number }) {
+  await requireAuth();
+  const page = Math.max(1, query?.page ?? 1);
+  return prisma.meeting.findMany({
+    where: pastMeetingsWhere(query),
+    include: { hostMember: true, documents: true },
+    orderBy: [{ date: "desc" }, { id: "asc" }],
+    skip: paginationSkip(page, PAST_MEETINGS_PAGE_SIZE),
+    take: PAST_MEETINGS_PAGE_SIZE,
+  });
+}
+
+export async function countPastMeetings(query?: { search?: string }) {
+  await requireAuth();
+  return prisma.meeting.count({ where: pastMeetingsWhere(query) });
 }
 
 /** Next `limit` meetings from today onward — for the member dashboard highlight. */

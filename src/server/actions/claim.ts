@@ -9,6 +9,7 @@ import { refreshMemberStatus } from "@/lib/business/memberStatus";
 import { applyBeneficiaryStatusTransition } from "./beneficiary";
 import { uploadPrivateFile } from "@/lib/storage/blob";
 import { sendClaimNotificationEmail, sendClaimPayoutProofEmail } from "./notifications";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
@@ -232,17 +233,20 @@ export async function recordClaimPayout(input: unknown): Promise<ActionResult<{ 
   }
 }
 
+const CLAIMS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
 /**
  * `year` filters by payout year (`ClaimPayout.paidDate`) — a claim only has
  * a concrete Rand value once paid, so that's the year it counts toward for
- * reporting purposes, not the year it was filed.
+ * reporting purposes, not the year it was filed. `search` matches either the
+ * member (name/membership no) or, when the claim is against a beneficiary,
+ * the deceased beneficiary's own name.
  */
-export async function listClaims(query?: { status?: string; year?: number }) {
-  await requireAdmin();
-  return prisma.claim.findMany({
-    where: {
-      ...(query?.status ? { status: query.status as never } : {}),
-      ...(query?.year
+function claimsWhere(query?: { status?: string; year?: number; search?: string }) {
+  return {
+    AND: [
+      query?.status ? { status: query.status as never } : {},
+      query?.year
         ? {
             payout: {
               paidDate: {
@@ -251,11 +255,37 @@ export async function listClaims(query?: { status?: string; year?: number }) {
               },
             },
           }
-        : {}),
-    },
+        : {},
+      query?.search
+        ? {
+            OR: [
+              { member: { firstName: { contains: query.search, mode: "insensitive" as const } } },
+              { member: { surname: { contains: query.search, mode: "insensitive" as const } } },
+              { member: { membershipNo: { contains: query.search, mode: "insensitive" as const } } },
+              { beneficiary: { firstName: { contains: query.search, mode: "insensitive" as const } } },
+              { beneficiary: { surname: { contains: query.search, mode: "insensitive" as const } } },
+            ],
+          }
+        : {},
+    ],
+  };
+}
+
+export async function listClaims(query?: { status?: string; year?: number; search?: string; page?: number }) {
+  await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
+  return prisma.claim.findMany({
+    where: claimsWhere(query),
     include: { member: true, beneficiary: true, payout: true },
-    orderBy: { submittedAt: "desc" },
+    orderBy: [{ submittedAt: "desc" }, { id: "asc" }],
+    skip: paginationSkip(page, CLAIMS_PAGE_SIZE),
+    take: CLAIMS_PAGE_SIZE,
   });
+}
+
+export async function countClaims(query?: { status?: string; year?: number; search?: string }) {
+  await requireAdmin();
+  return prisma.claim.count({ where: claimsWhere(query) });
 }
 
 export async function getClaimOutstandingBalance(memberId: string) {

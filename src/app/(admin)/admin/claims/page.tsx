@@ -1,7 +1,9 @@
-import { listClaims } from "@/server/actions/claim";
+import { listClaims, countClaims } from "@/server/actions/claim";
 import { prisma } from "@/lib/prisma";
 import { CLAIM_STATUS_LABELS } from "@/lib/statusLabels";
 import { formatDate, formatCurrency } from "@/lib/format";
+import { parsePage, totalPageCount } from "@/lib/pagination";
+import Pagination from "@/components/ui/Pagination";
 import Link from "next/link";
 import type { ClaimStatus } from "@prisma/client";
 
@@ -15,15 +17,18 @@ const CLAIM_STATUS_CLASSES: Record<ClaimStatus, string> = {
 export default async function AdminClaimsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string }>;
+  searchParams: Promise<{ year?: string; search?: string; page?: string }>;
 }) {
-  const { year: yearParam } = await searchParams;
+  const { year: yearParam, search, page: pageParam } = await searchParams;
   const year = yearParam ? Number(yearParam) : undefined;
+  const page = parsePage(pageParam);
 
-  const [claims, payoutYears] = await Promise.all([
-    listClaims({ year }),
+  const [claims, total, payoutYears] = await Promise.all([
+    listClaims({ year, search, page }),
+    countClaims({ year, search }),
     prisma.claimPayout.findMany({ distinct: ["paidDate"], select: { paidDate: true } }),
   ]);
+  const totalPages = totalPageCount(total, 20);
 
   const currentYear = new Date().getFullYear();
   const availableYears = Array.from(
@@ -32,9 +37,15 @@ export default async function AdminClaimsPage({
 
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold text-navy">Claims</h1>
+      <h1 className="text-xl font-semibold text-navy">Claims ({total})</h1>
 
-      <form className="flex gap-2 text-sm items-center">
+      <form className="flex gap-2 text-sm items-center flex-wrap">
+        <input
+          name="search"
+          defaultValue={search}
+          placeholder="Search member or deceased name"
+          className="border border-slate-300 rounded px-3 py-2 bg-white"
+        />
         <select name="year" defaultValue={year ?? ""} className="border border-slate-300 rounded px-3 py-2 bg-white">
           <option value="">All years (by payout)</option>
           {availableYears.map((y) => (
@@ -83,6 +94,8 @@ export default async function AdminClaimsPage({
           </tbody>
         </table>
       </div>
+
+      <Pagination page={page} totalPages={totalPages} basePath="/admin/claims" params={{ search, year: yearParam }} />
     </div>
   );
 }

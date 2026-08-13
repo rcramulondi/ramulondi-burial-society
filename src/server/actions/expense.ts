@@ -8,6 +8,7 @@ import { revalidatePath } from "next/cache";
 import { toSafeErrorMessage } from "@/lib/actionError";
 import { z } from "zod";
 import { CommitteeRole } from "@prisma/client";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
 import type { ActionResult } from "./member";
 
 const expenseCreateSchema = z.object({
@@ -90,12 +91,35 @@ export async function createExpense(formData: FormData): Promise<ActionResult<{ 
   }
 }
 
-export async function listExpenses() {
+const EXPENSES_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+function expensesWhere(query?: { search?: string }) {
+  return query?.search
+    ? {
+        OR: [
+          { description: { contains: query.search, mode: "insensitive" as const } },
+          { spentByMember: { firstName: { contains: query.search, mode: "insensitive" as const } } },
+          { spentByMember: { surname: { contains: query.search, mode: "insensitive" as const } } },
+        ],
+      }
+    : {};
+}
+
+export async function listExpenses(query?: { search?: string; page?: number }) {
   await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
   return prisma.expense.findMany({
+    where: expensesWhere(query),
     include: { spentByMember: true, documents: true },
-    orderBy: { expenseDate: "desc" },
+    orderBy: [{ expenseDate: "desc" }, { id: "asc" }],
+    skip: paginationSkip(page, EXPENSES_PAGE_SIZE),
+    take: EXPENSES_PAGE_SIZE,
   });
+}
+
+export async function countExpenses(query?: { search?: string }) {
+  await requireAdmin();
+  return prisma.expense.count({ where: expensesWhere(query) });
 }
 
 /** Members who currently hold, or have ever held, a committee position. */
