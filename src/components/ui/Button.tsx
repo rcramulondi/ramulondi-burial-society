@@ -23,24 +23,17 @@ export default function Button({
 } & React.ButtonHTMLAttributes<HTMLButtonElement>) {
   const classes = `${baseClasses} ${VARIANT_CLASSES[variant]} ${className ?? ""}`;
 
-  // Primary button gets the one solid, blueprint-marked object on the screen.
-  const marks = variant === "primary" ? (
-    <>
-      <i className="corner tl" /><i className="corner tr" /><i className="corner bl" /><i className="corner br" />
-    </>
-  ) : null;
-
   if (href) {
     return (
-      <Link href={href} className={`blueprint ${classes}`}>
-        {marks}{children}
+      <Link href={href} className={classes}>
+        {children}
       </Link>
     );
   }
 
   return (
-    <button className={`blueprint ${classes}`} {...rest}>
-      {marks}{children}
+    <button className={classes} {...rest}>
+      {children}
     </button>
   );
 }
