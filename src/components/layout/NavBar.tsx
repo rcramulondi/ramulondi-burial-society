@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   Calendar,
   Landmark,
+  HelpCircle,
 } from "lucide-react";
 import type { AdminGroup } from "@prisma/client";
 
@@ -68,6 +69,8 @@ export default async function NavBar() {
   if (isAdmin && session.user.memberId) {
     links = [...links, { href: "/profile", label: "Profile", icon: <User className={iconClass} /> }];
   }
+
+  links = [...links, { href: "/help", label: "Help", icon: <HelpCircle className={iconClass} /> }];
 
   const signOutForm = (
     <form

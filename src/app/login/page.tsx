@@ -70,6 +70,9 @@ export default async function LoginPage({
         <p className="mt-4 text-sm text-neutral-500">
           New member? Ask an admin for your activation link.
         </p>
+        <p className="mt-2 text-sm">
+          <a href="/help" className="text-accent hover:underline">Need help using the app?</a>
+        </p>
       </div>
     </div>
   );
