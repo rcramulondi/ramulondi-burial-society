@@ -9,6 +9,7 @@ import SearchSelect from "@/components/ui/SearchSelect";
 import Pagination from "@/components/ui/Pagination";
 import { formatDate } from "@/lib/format";
 import { parsePage, totalPageCount } from "@/lib/pagination";
+import { Phone, Mail } from "lucide-react";
 
 export default async function AdminCommitteePage({
   searchParams,
@@ -57,8 +58,30 @@ export default async function AdminCommitteePage({
                     <td className="py-2 pr-3">
                       {holder ? `${holder.member.firstName} ${holder.member.surname}` : <span className="text-neutral-500">Vacant</span>}
                     </td>
-                    <td className="py-2 pr-3 hidden min-[820px]:table-cell">{holder?.member.phone ?? "—"}</td>
-                    <td className="py-2 pr-3 hidden min-[820px]:table-cell">{holder?.member.email ?? "—"}</td>
+                    <td className="py-2 pr-3 hidden min-[820px]:table-cell">
+                      {holder?.member.phone ? (
+                        <a
+                          href={`tel:${holder.member.phone.replace(/\s+/g, "")}`}
+                          className="inline-flex items-center gap-1 text-accent hover:underline"
+                        >
+                          <Phone className="w-3.5 h-3.5 shrink-0" /> {holder.member.phone}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
+                    <td className="py-2 pr-3 hidden min-[820px]:table-cell">
+                      {holder?.member.email ? (
+                        <a
+                          href={`mailto:${holder.member.email}`}
+                          className="inline-flex items-center gap-1 text-accent hover:underline"
+                        >
+                          <Mail className="w-3.5 h-3.5 shrink-0" /> {holder.member.email}
+                        </a>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="py-2 pr-3 hidden min-[480px]:table-cell">{holder ? formatDate(holder.startDate) : "—"}</td>
                     <td className="py-2 pr-3">
                       <details>
