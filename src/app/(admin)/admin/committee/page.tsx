@@ -42,6 +42,8 @@ export default async function AdminCommitteePage({
               <tr className="text-left border-b border-slate-200">
                 <th className="py-1 pr-3">Role</th>
                 <th className="py-1 pr-3">Held by</th>
+                <th className="py-1 pr-3 hidden min-[820px]:table-cell">Phone</th>
+                <th className="py-1 pr-3 hidden min-[820px]:table-cell">Email</th>
                 <th className="py-1 pr-3 hidden min-[480px]:table-cell">Since</th>
                 <th className="py-1 pr-3">Assign new holder</th>
               </tr>
@@ -55,6 +57,8 @@ export default async function AdminCommitteePage({
                     <td className="py-2 pr-3">
                       {holder ? `${holder.member.firstName} ${holder.member.surname}` : <span className="text-neutral-500">Vacant</span>}
                     </td>
+                    <td className="py-2 pr-3 hidden min-[820px]:table-cell">{holder?.member.phone ?? "—"}</td>
+                    <td className="py-2 pr-3 hidden min-[820px]:table-cell">{holder?.member.email ?? "—"}</td>
                     <td className="py-2 pr-3 hidden min-[480px]:table-cell">{holder ? formatDate(holder.startDate) : "—"}</td>
                     <td className="py-2 pr-3">
                       <details>
