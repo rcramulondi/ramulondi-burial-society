@@ -8,7 +8,7 @@ import OptionalSection from "@/components/forms/OptionalSection";
 import DeleteButton from "@/components/forms/DeleteButton";
 import Modal from "@/components/ui/Modal";
 import { BeneficiaryStatusBadge } from "@/components/ui/StatusBadge";
-import { createBeneficiaryForm, deleteBeneficiaryForm, updateBeneficiaryForm } from "@/server/actions/beneficiary";
+import { createBeneficiaryForm, deleteBeneficiaryForm, updateBeneficiaryForm, cancelBeneficiaryForm } from "@/server/actions/beneficiary";
 
 const RELATIONSHIPS = ["FATHER", "MOTHER", "SPOUSE", "SON", "DAUGHTER", "DEPENDENT", "OTHER"];
 
@@ -23,10 +23,11 @@ export default async function BeneficiariesPage() {
         <h1 className="text-xl font-semibold">Beneficiaries</h1>
         <Modal triggerLabel="New beneficiary" title="Add a beneficiary">
           <p className="text-xs text-neutral-500 mb-4">
-            Only one Father and one Mother can be recorded per member. Beneficiaries can only be
-            removed once every 12 months.
+            Only one Father and one Mother can be recorded per member. A new beneficiary must be
+            approved by the Secretary before it&apos;s active — you&apos;ll be notified once it&apos;s
+            reviewed. Beneficiaries can only be removed once every 12 months.
           </p>
-          <ActionForm action={createBeneficiaryForm} submitLabel="Add beneficiary" onSuccessMessage="Beneficiary added." sticky>
+          <ActionForm action={createBeneficiaryForm} submitLabel="Add beneficiary" onSuccessMessage="Beneficiary submitted — check its status below." sticky>
             <FormKey />
             <input type="hidden" name="memberId" value={memberId} />
             <Field label="First name" name="firstName" required />
@@ -68,13 +69,34 @@ export default async function BeneficiariesPage() {
         <tbody>
           {beneficiaries.map((b) => (
             <tr key={b.id} className="border-b border-black/5">
-              <td className="py-1">{b.firstName} {b.surname}</td>
+              <td className="py-1">
+                {b.firstName} {b.surname}
+                {b.status === "REJECTED" && b.reviewNotes && (
+                  <p className="text-xs text-danger mt-0.5">Reason: {b.reviewNotes}</p>
+                )}
+              </td>
               <td className="py-1 hidden min-[480px]:table-cell">{b.relationship}</td>
               <td className="py-1 hidden min-[820px]:table-cell">{b.referenceNo}</td>
               <td className="py-1"><BeneficiaryStatusBadge status={b.status} /></td>
               <td className="py-1">
                 <div className="flex items-center gap-3">
-                  {b.status !== "DECEASED" && (
+                  {b.status === "PENDING_APPROVAL" && (
+                    <DeleteButton
+                      action={cancelBeneficiaryForm}
+                      hiddenFields={{ beneficiaryId: b.id }}
+                      label="Cancel request"
+                      confirmMessage="Withdraw this beneficiary request? This cannot be undone."
+                    />
+                  )}
+                  {b.status === "REJECTED" && (
+                    <DeleteButton
+                      action={cancelBeneficiaryForm}
+                      hiddenFields={{ beneficiaryId: b.id }}
+                      label="Dismiss"
+                      confirmMessage="Dismiss this rejected request? This frees you up to submit a replacement."
+                    />
+                  )}
+                  {b.status !== "DECEASED" && b.status !== "REJECTED" && (
                     <Modal triggerLabel="Edit" title={`Edit ${b.firstName} ${b.surname}`}>
                       <ActionForm action={updateBeneficiaryForm} submitLabel="Save changes" onSuccessMessage="Beneficiary updated." sticky>
                         <FormKey />
@@ -103,11 +125,13 @@ export default async function BeneficiariesPage() {
                       </ActionForm>
                     </Modal>
                   )}
-                  <DeleteButton
-                    action={deleteBeneficiaryForm}
-                    hiddenFields={{ beneficiaryId: b.id }}
-                    confirmMessage="Remove this beneficiary? You can only do this once every 12 months."
-                  />
+                  {b.status !== "PENDING_APPROVAL" && b.status !== "REJECTED" && (
+                    <DeleteButton
+                      action={deleteBeneficiaryForm}
+                      hiddenFields={{ beneficiaryId: b.id }}
+                      confirmMessage="Remove this beneficiary? You can only do this once every 12 months."
+                    />
+                  )}
                 </div>
               </td>
             </tr>

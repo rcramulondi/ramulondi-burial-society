@@ -13,6 +13,8 @@ export const BENEFICIARY_STATUS_COLORS: Record<BeneficiaryStatus, StatusColor> =
   ACTIVE: "green",
   INACTIVE: "red",
   DECEASED: "grey",
+  PENDING_APPROVAL: "amber",
+  REJECTED: "red",
 };
 
 // Industry is a mono (steel-blue) palette — no red/amber/green hues. Status is

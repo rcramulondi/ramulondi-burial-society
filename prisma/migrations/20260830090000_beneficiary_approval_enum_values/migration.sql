@@ -1,0 +1,6 @@
+-- AlterEnum
+ALTER TYPE "BeneficiaryStatus" ADD VALUE 'PENDING_APPROVAL';
+ALTER TYPE "BeneficiaryStatus" ADD VALUE 'REJECTED';
+
+-- CreateEnum
+CREATE TYPE "NotificationType" AS ENUM ('BENEFICIARY_APPROVED', 'BENEFICIARY_REJECTED');

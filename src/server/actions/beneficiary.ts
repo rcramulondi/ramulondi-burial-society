@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/prisma";
-import { requireOwnMemberOrAdmin, requireMemberMaintainer, requireAdminGroup } from "@/server/permissions";
+import { requireOwnMemberOrAdmin, requireMemberMaintainer, requireAdminGroup, requireAdmin } from "@/server/permissions";
 import { beneficiaryCreateSchema, beneficiaryUpdateSchema } from "@/lib/validation/schemas";
 import { generateBeneficiaryReference } from "@/lib/business/membershipNumber";
 import {
@@ -9,13 +9,25 @@ import {
   assertDeletionAllowed,
   assertNotReRegisteringDeceased,
 } from "@/lib/business/beneficiaryRules";
+import { sendBeneficiaryApprovalRequestEmail, sendBeneficiaryDecisionNotification } from "./notifications";
 import { logAudit } from "@/lib/audit";
 import { revalidatePath } from "next/cache";
 import { formDataToObject } from "@/lib/formData";
 import { toSafeErrorMessage } from "@/lib/actionError";
+import { DEFAULT_PAGE_SIZE, paginationSkip } from "@/lib/pagination";
+import { z } from "zod";
 import type { BeneficiaryStatus, Prisma } from "@prisma/client";
 import type { ActionResult } from "./member";
 
+/**
+ * A member-submitted beneficiary starts PENDING_APPROVAL and isn't eligible
+ * for claims until a Secretary/Super Admin reviews it (see reviewBeneficiary
+ * below). Only SUPER_ADMIN/SECRETARY can reach this action at all when
+ * acting on someone else's behalf (per requireMemberMaintainer) — so "added
+ * by an Administrator" bypasses the workflow entirely and activates
+ * immediately, since that admin already holds the same authority that would
+ * have approved it anyway.
+ */
 export async function createBeneficiary(input: unknown): Promise<ActionResult<{ id: string }>> {
   try {
     const parsed = beneficiaryCreateSchema.safeParse(input);
@@ -36,6 +48,7 @@ export async function createBeneficiary(input: unknown): Promise<ActionResult<{ 
     await assertNotReRegisteringDeceased(data.idNumber);
 
     const referenceNo = await generateBeneficiaryReference(member.membershipNo, member.id);
+    const isAdminSubmission = session.user.role === "ADMIN";
 
     const beneficiary = await prisma.beneficiary.create({
       data: {
@@ -49,6 +62,15 @@ export async function createBeneficiary(input: unknown): Promise<ActionResult<{ 
         dateOfBirth: data.dateOfBirth,
         isDisabled: data.isDisabled,
         referenceNo,
+        status: isAdminSubmission ? "ACTIVE" : "PENDING_APPROVAL",
+        submittedByUserId: session.user.id,
+        ...(isAdminSubmission
+          ? {
+              reviewedByUserId: session.user.id,
+              reviewedAt: new Date(),
+              reviewNotes: "Auto-approved — added directly by an Administrator.",
+            }
+          : {}),
       },
     });
 
@@ -60,8 +82,16 @@ export async function createBeneficiary(input: unknown): Promise<ActionResult<{ 
       performedByUserId: session.user.id,
     });
 
+    if (isAdminSubmission) {
+      await sendBeneficiaryDecisionNotification(beneficiary.id, session.user.id);
+    } else {
+      await sendBeneficiaryApprovalRequestEmail(beneficiary.id, session.user.id);
+    }
+
     revalidatePath("/beneficiaries");
     revalidatePath(`/admin/members/${data.memberId}`);
+    revalidatePath(`/admin/members/${data.memberId}/beneficiaries`);
+    revalidatePath("/admin/beneficiary-approvals");
     return { ok: true, data: { id: beneficiary.id } };
   } catch (e) {
     return { ok: false, error: toSafeErrorMessage(e, "Failed to add beneficiary.") };
@@ -87,6 +117,9 @@ export async function updateBeneficiary(beneficiaryId: string, input: unknown): 
 
     if (existing.status === "DECEASED") {
       return { ok: false, error: "This beneficiary is recorded as deceased and can no longer be edited." };
+    }
+    if (existing.status === "REJECTED") {
+      return { ok: false, error: "This beneficiary's addition was rejected and can no longer be edited." };
     }
 
     if (data.relationship === "FATHER" || data.relationship === "MOTHER") {
@@ -131,6 +164,10 @@ export async function deleteBeneficiary(beneficiaryId: string): Promise<ActionRe
     const beneficiary = await prisma.beneficiary.findUniqueOrThrow({ where: { id: beneficiaryId } });
     const session = await requireMemberMaintainer(beneficiary.memberId);
 
+    if (beneficiary.status === "PENDING_APPROVAL" || beneficiary.status === "REJECTED") {
+      return { ok: false, error: "Use Cancel to withdraw a beneficiary that hasn't been approved yet." };
+    }
+
     await assertDeletionAllowed(beneficiary.memberId);
 
     await prisma.beneficiary.update({
@@ -151,6 +188,48 @@ export async function deleteBeneficiary(beneficiaryId: string): Promise<ActionRe
     return { ok: true, data: { id: beneficiaryId } };
   } catch (e) {
     return { ok: false, error: toSafeErrorMessage(e, "Failed to delete beneficiary.") };
+  }
+}
+
+/**
+ * Member self-service withdrawal of a request that never went active — a
+ * PENDING_APPROVAL beneficiary the member no longer wants considered, or a
+ * REJECTED one they want off their record (dismissing it also frees up a
+ * held Father/Mother slot, since the single-parent unique index only checks
+ * deletedAt, not status). Logs STATUS_CHANGE rather than DELETE so this
+ * never consumes assertDeletionAllowed's real once-per-12-months allowance,
+ * which is meant to throttle removing a beneficiary that was actually active.
+ */
+export async function cancelBeneficiary(beneficiaryId: string): Promise<ActionResult<{ id: string }>> {
+  try {
+    const beneficiary = await prisma.beneficiary.findUniqueOrThrow({ where: { id: beneficiaryId } });
+    const session = await requireMemberMaintainer(beneficiary.memberId);
+
+    if (beneficiary.status !== "PENDING_APPROVAL" && beneficiary.status !== "REJECTED") {
+      return { ok: false, error: "Only a pending or rejected beneficiary request can be cancelled." };
+    }
+
+    await prisma.beneficiary.update({
+      where: { id: beneficiaryId },
+      data: { deletedAt: new Date() },
+    });
+
+    await logAudit({
+      entityType: "Beneficiary",
+      entityId: beneficiaryId,
+      memberId: beneficiary.memberId,
+      action: "STATUS_CHANGE",
+      performedByUserId: session.user.id,
+      metadata: { cancelledFromStatus: beneficiary.status },
+    });
+
+    revalidatePath("/beneficiaries");
+    revalidatePath(`/admin/members/${beneficiary.memberId}`);
+    revalidatePath(`/admin/members/${beneficiary.memberId}/beneficiaries`);
+    revalidatePath("/admin/beneficiary-approvals");
+    return { ok: true, data: { id: beneficiaryId } };
+  } catch (e) {
+    return { ok: false, error: toSafeErrorMessage(e, "Failed to cancel beneficiary request.") };
   }
 }
 
@@ -181,6 +260,12 @@ export async function applyBeneficiaryStatusTransition(
 
   if (beneficiary.status === "DECEASED") {
     return { ok: false, error: "This beneficiary is recorded as deceased and cannot be changed further." };
+  }
+  if (beneficiary.status === "PENDING_APPROVAL") {
+    return { ok: false, error: "This beneficiary is awaiting approval — use the Pending Beneficiary Approvals inbox to approve or reject it." };
+  }
+  if (status === "PENDING_APPROVAL" || status === "REJECTED") {
+    return { ok: false, error: "This status can only be set through the beneficiary approval workflow." };
   }
 
   await client.beneficiary.update({ where: { id: beneficiaryId }, data: { status } });
@@ -219,6 +304,111 @@ export async function updateBeneficiaryStatus(
   } catch (e) {
     return { ok: false, error: toSafeErrorMessage(e, "Failed to update beneficiary status.") };
   }
+}
+
+const reviewBeneficiarySchema = z
+  .object({
+    beneficiaryId: z.string().min(1),
+    decision: z.enum(["APPROVED", "REJECTED"]),
+    reviewNotes: z.string().trim().optional(),
+  })
+  .refine((d) => d.decision !== "REJECTED" || !!d.reviewNotes, {
+    message: "A reason is required when rejecting a beneficiary.",
+    path: ["reviewNotes"],
+  });
+
+/**
+ * The decisive approve/reject action for a member-submitted beneficiary —
+ * gated identically to reviewClaim (Secretary or Super Admin only). Other
+ * admins can view the pending request but only these two groups can act on
+ * it. A single, one-shot decision (no multi-reviewer chain).
+ */
+export async function reviewBeneficiary(input: unknown): Promise<ActionResult<{ id: string }>> {
+  try {
+    const session = await requireAdminGroup("SUPER_ADMIN", "SECRETARY");
+    const parsed = reviewBeneficiarySchema.safeParse(input);
+    if (!parsed.success) {
+      return { ok: false, error: parsed.error.issues.map((i) => i.message).join(" ") };
+    }
+    const data = parsed.data;
+
+    const beneficiary = await prisma.beneficiary.findUniqueOrThrow({ where: { id: data.beneficiaryId } });
+    if (beneficiary.status !== "PENDING_APPROVAL") {
+      return { ok: false, error: "This beneficiary is not awaiting approval." };
+    }
+
+    const updated = await prisma.beneficiary.update({
+      where: { id: data.beneficiaryId },
+      data: {
+        status: data.decision === "APPROVED" ? "ACTIVE" : "REJECTED",
+        reviewedByUserId: session.user.id,
+        reviewedAt: new Date(),
+        reviewNotes: data.reviewNotes,
+      },
+    });
+
+    await logAudit({
+      entityType: "Beneficiary",
+      entityId: updated.id,
+      memberId: updated.memberId,
+      action: "STATUS_CHANGE",
+      performedByUserId: session.user.id,
+      metadata: { decision: data.decision, reviewNotes: data.reviewNotes },
+    });
+
+    await sendBeneficiaryDecisionNotification(updated.id, session.user.id);
+
+    revalidatePath("/beneficiaries");
+    revalidatePath(`/admin/members/${updated.memberId}`);
+    revalidatePath(`/admin/members/${updated.memberId}/beneficiaries`);
+    revalidatePath("/admin/beneficiary-approvals");
+    return { ok: true, data: { id: updated.id } };
+  } catch (e) {
+    return { ok: false, error: toSafeErrorMessage(e, "Failed to review beneficiary.") };
+  }
+}
+
+const BENEFICIARY_APPROVALS_PAGE_SIZE = DEFAULT_PAGE_SIZE;
+
+function pendingBeneficiaryApprovalsWhere(query?: { search?: string }) {
+  return {
+    status: "PENDING_APPROVAL" as const,
+    deletedAt: null,
+    ...(query?.search
+      ? {
+          OR: [
+            { firstName: { contains: query.search, mode: "insensitive" as const } },
+            { surname: { contains: query.search, mode: "insensitive" as const } },
+            { member: { firstName: { contains: query.search, mode: "insensitive" as const } } },
+            { member: { surname: { contains: query.search, mode: "insensitive" as const } } },
+            { member: { membershipNo: { contains: query.search, mode: "insensitive" as const } } },
+          ],
+        }
+      : {}),
+  };
+}
+
+/**
+ * The Pending Beneficiary Approvals inbox — viewable by any admin group
+ * (the decisive action itself is separately gated inside reviewBeneficiary).
+ * Always scoped to PENDING_APPROVAL, so a reviewed request automatically
+ * disappears from this list the moment it's approved or rejected.
+ */
+export async function listPendingBeneficiaryApprovals(query?: { search?: string; page?: number }) {
+  await requireAdmin();
+  const page = Math.max(1, query?.page ?? 1);
+  return prisma.beneficiary.findMany({
+    where: pendingBeneficiaryApprovalsWhere(query),
+    include: { member: true },
+    orderBy: [{ createdAt: "desc" }, { id: "asc" }],
+    skip: paginationSkip(page, BENEFICIARY_APPROVALS_PAGE_SIZE),
+    take: BENEFICIARY_APPROVALS_PAGE_SIZE,
+  });
+}
+
+export async function countPendingBeneficiaryApprovals(query?: { search?: string }) {
+  await requireAdmin();
+  return prisma.beneficiary.count({ where: pendingBeneficiaryApprovalsWhere(query) });
 }
 
 /**
@@ -284,6 +474,14 @@ export async function createBeneficiaryForm(formData: FormData) {
 
 export async function deleteBeneficiaryForm(formData: FormData) {
   return deleteBeneficiary(String(formData.get("beneficiaryId") ?? ""));
+}
+
+export async function cancelBeneficiaryForm(formData: FormData) {
+  return cancelBeneficiary(String(formData.get("beneficiaryId") ?? ""));
+}
+
+export async function reviewBeneficiaryForm(formData: FormData) {
+  return reviewBeneficiary(formDataToObject(formData));
 }
 
 export async function updateBeneficiaryForm(formData: FormData) {

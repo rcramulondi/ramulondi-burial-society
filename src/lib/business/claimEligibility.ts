@@ -39,6 +39,9 @@ export async function checkClaimSubmissionEligibility(
     if (beneficiary.status === "DECEASED") {
       return { eligible: false, reason: "This beneficiary is already recorded as deceased." };
     }
+    if (beneficiary.status === "PENDING_APPROVAL" || beneficiary.status === "REJECTED") {
+      return { eligible: false, reason: "This beneficiary has not been approved and is not eligible for a claim." };
+    }
     const existingClaim = await prisma.claim.findFirst({ where: { beneficiaryId: opts.beneficiaryId } });
     if (existingClaim) {
       return { eligible: false, reason: "A claim has already been submitted for this beneficiary." };

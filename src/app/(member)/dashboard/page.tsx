@@ -4,7 +4,7 @@ import { getMemberContributionSummary } from "@/server/actions/payment";
 import { getMemberPayoutSummary } from "@/server/actions/claim";
 import { listUpcomingMeetings } from "@/server/actions/meeting";
 import { CLAIM_STATUS_LABELS, MEETING_TYPE_LABELS } from "@/lib/statusLabels";
-import { MemberStatusBadge } from "@/components/ui/StatusBadge";
+import { MemberStatusBadge, BeneficiaryStatusBadge } from "@/components/ui/StatusBadge";
 import { outstandingBalanceClass } from "@/lib/statusColors";
 import { formatDate, formatCurrency } from "@/lib/format";
 import Button from "@/components/ui/Button";
@@ -110,10 +110,11 @@ export default async function MemberDashboardPage() {
 
       <section>
         <h2 className="font-medium mb-2">Beneficiaries</h2>
-        <ul className="text-sm flex flex-col gap-1">
+        <ul className="text-sm flex flex-col gap-2">
           {member.beneficiaries.map((b) => (
-            <li key={b.id}>
-              {b.firstName} {b.surname} &middot; {b.relationship}
+            <li key={b.id} className="flex items-center gap-2">
+              <span>{b.firstName} {b.surname} &middot; {b.relationship}</span>
+              <BeneficiaryStatusBadge status={b.status} />
             </li>
           ))}
           {member.beneficiaries.length === 0 && (

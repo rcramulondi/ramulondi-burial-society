@@ -1,4 +1,11 @@
-import { listBeneficiaries, createBeneficiaryForm, deleteBeneficiaryForm, updateBeneficiaryForm, updateBeneficiaryStatusForm } from "@/server/actions/beneficiary";
+import {
+  listBeneficiaries,
+  createBeneficiaryForm,
+  deleteBeneficiaryForm,
+  updateBeneficiaryForm,
+  updateBeneficiaryStatusForm,
+  cancelBeneficiaryForm,
+} from "@/server/actions/beneficiary";
 import { BENEFICIARY_STATUS_LABELS } from "@/lib/statusLabels";
 import { BeneficiaryStatusBadge } from "@/components/ui/StatusBadge";
 import ActionForm from "@/components/forms/ActionForm";
@@ -102,9 +109,7 @@ export default async function MemberBeneficiariesPage({
                     )}
                   </td>
                   <td className="py-2 pr-3">
-                    {b.status === "DECEASED" ? (
-                      <BeneficiaryStatusBadge status={b.status} />
-                    ) : (
+                    {b.status === "ACTIVE" || b.status === "INACTIVE" ? (
                       <ActionForm
                         action={updateBeneficiaryStatusForm}
                         submitLabel="Update"
@@ -119,11 +124,35 @@ export default async function MemberBeneficiariesPage({
                           <option value="DECEASED">{BENEFICIARY_STATUS_LABELS.DECEASED}</option>
                         </select>
                       </ActionForm>
+                    ) : (
+                      <div className="flex flex-col gap-1 items-start">
+                        <BeneficiaryStatusBadge status={b.status} />
+                        {b.status === "PENDING_APPROVAL" && (
+                          <Link href={`/admin/beneficiary-approvals/${b.id}`} className="text-xs text-accent hover:underline">
+                            Review
+                          </Link>
+                        )}
+                        {b.status === "REJECTED" && b.reviewNotes && (
+                          <span className="text-xs text-danger max-w-[180px]">Reason: {b.reviewNotes}</span>
+                        )}
+                      </div>
                     )}
                   </td>
                   <td className="py-2 pr-3">
                     <div className="flex items-center gap-3">
-                      {b.status !== "DECEASED" && (
+                      {(b.status === "PENDING_APPROVAL" || b.status === "REJECTED") && (
+                        <DeleteButton
+                          action={cancelBeneficiaryForm}
+                          hiddenFields={{ beneficiaryId: b.id }}
+                          label={b.status === "PENDING_APPROVAL" ? "Cancel" : "Dismiss"}
+                          confirmMessage={
+                            b.status === "PENDING_APPROVAL"
+                              ? "Withdraw this beneficiary request? This cannot be undone."
+                              : "Dismiss this rejected request? This frees up the relationship slot for a replacement."
+                          }
+                        />
+                      )}
+                      {b.status !== "DECEASED" && b.status !== "REJECTED" && (
                         <Modal triggerLabel="Edit" title={`Edit ${b.firstName} ${b.surname}`}>
                           <ActionForm action={updateBeneficiaryForm} submitLabel="Save changes" onSuccessMessage="Beneficiary updated." sticky>
                             <FormKey />
@@ -150,11 +179,13 @@ export default async function MemberBeneficiariesPage({
                           </ActionForm>
                         </Modal>
                       )}
-                      <DeleteButton
-                        action={deleteBeneficiaryForm}
-                        hiddenFields={{ beneficiaryId: b.id }}
-                        confirmMessage="Remove this beneficiary? Only one deletion is allowed per 12-month period."
-                      />
+                      {b.status !== "PENDING_APPROVAL" && b.status !== "REJECTED" && (
+                        <DeleteButton
+                          action={deleteBeneficiaryForm}
+                          hiddenFields={{ beneficiaryId: b.id }}
+                          confirmMessage="Remove this beneficiary? Only one deletion is allowed per 12-month period."
+                        />
+                      )}
                     </div>
                   </td>
                 </tr>

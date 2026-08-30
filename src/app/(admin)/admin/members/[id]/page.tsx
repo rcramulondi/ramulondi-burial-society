@@ -11,6 +11,7 @@ import InviteButton from "@/components/forms/InviteButton";
 import Card from "@/components/ui/Card";
 import Modal from "@/components/ui/Modal";
 import SearchSelect from "@/components/ui/SearchSelect";
+import { BeneficiaryStatusBadge } from "@/components/ui/StatusBadge";
 import { formatDate, formatCurrency } from "@/lib/format";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -219,8 +220,11 @@ async function DeceasedBeneficiariesSection({ memberId }: { memberId: string }) 
       </p>
       <ul className="flex flex-col gap-3">
         {beneficiaries.map((b) => (
-          <li key={b.id} className="flex items-center justify-between text-sm border-b border-slate-100 pb-2">
-            <span>{b.firstName} {b.surname} <span className="text-neutral-500">({b.relationship})</span></span>
+          <li key={b.id} className="flex items-center justify-between text-sm border-b border-slate-100 pb-2 gap-2">
+            <span className="flex items-center gap-2">
+              {b.firstName} {b.surname} <span className="text-neutral-500">({b.relationship})</span>
+              <BeneficiaryStatusBadge status={b.status} />
+            </span>
             <Modal triggerLabel="Reallocate" title={`Reallocate ${b.firstName} ${b.surname}`}>
               <ActionForm action={reallocateBeneficiaryForm} submitLabel="Reallocate">
                 <input type="hidden" name="beneficiaryId" value={b.id} />

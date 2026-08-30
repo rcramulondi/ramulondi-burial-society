@@ -80,6 +80,8 @@ enum BeneficiaryStatus {
   ACTIVE
   INACTIVE
   DECEASED
+  PENDING_APPROVAL
+  REJECTED
 }
 
 enum CommitteeRole {
@@ -164,6 +166,7 @@ model User {
   updatedAt          DateTime    @updatedAt
 
   activationTokens ActivationToken[]
+  notifications    Notification[]
 }
 
 model ActivationToken {
@@ -244,27 +247,32 @@ model MemberStatusHistory {
 }
 
 model Beneficiary {
-  id           String            @id @default(cuid())
-  memberId     String
-  member       Member            @relation(fields: [memberId], references: [id])
-  firstName    String
-  surname      String
-  idNumber     String?
-  phone        String?
-  email        String?
-  referenceNo  String            @unique
-  relationship RelationshipType
-  dateOfBirth  DateTime?
-  isDisabled   Boolean           @default(false)
-  status       BeneficiaryStatus @default(ACTIVE)
-  deletedAt    DateTime?
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
+  id                String            @id @default(cuid())
+  memberId          String
+  member            Member            @relation(fields: [memberId], references: [id])
+  firstName         String
+  surname           String
+  idNumber          String?
+  phone             String?
+  email             String?
+  referenceNo       String            @unique
+  relationship      RelationshipType
+  dateOfBirth       DateTime?
+  isDisabled        Boolean           @default(false)
+  status            BeneficiaryStatus @default(ACTIVE)
+  submittedByUserId String?
+  reviewedByUserId  String?
+  reviewedAt        DateTime?
+  reviewNotes       String?
+  deletedAt         DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   documents Document[]
   claims    Claim[]
 
   @@index([memberId])
+  @@index([status])
 }
 
 model PayoutNominee {
@@ -580,6 +588,27 @@ model AuditLog {
   createdAt         DateTime    @default(now())
 
   @@index([entityType, memberId, action, createdAt])
+}
+
+enum NotificationType {
+  BENEFICIARY_APPROVED
+  BENEFICIARY_REJECTED
+}
+
+model Notification {
+  id         String           @id @default(cuid())
+  userId     String
+  user       User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type       NotificationType
+  title      String
+  body       String
+  entityType String?
+  entityId   String?
+  linkPath   String?
+  readAt     DateTime?
+  createdAt  DateTime         @default(now())
+
+  @@index([userId, readAt])
 }
 
 model AppSetting {

@@ -12,7 +12,11 @@ const sectionTitleClass = "text-xs font-bold uppercase tracking-wide text-primar
 export default async function NewClaimPage() {
   const [members, beneficiaries] = await Promise.all([
     prisma.member.findMany({ orderBy: { surname: "asc" } }),
-    prisma.beneficiary.findMany({ where: { deletedAt: null }, include: { member: true }, orderBy: { surname: "asc" } }),
+    prisma.beneficiary.findMany({
+      where: { deletedAt: null, status: { notIn: ["PENDING_APPROVAL", "REJECTED"] } },
+      include: { member: true },
+      orderBy: { surname: "asc" },
+    }),
   ]);
 
   const memberOptions = members.map((m) => ({

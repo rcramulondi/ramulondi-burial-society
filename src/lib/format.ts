@@ -22,3 +22,21 @@ export function formatCurrency(amount: number | string | { toString(): string } 
   const n = Number(amount ?? 0);
   return `R ${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
+
+/**
+ * dd/mm/yyyy, HH:MM — for a true timestamp (e.g. "submitted at"), unlike
+ * `formatDate` which is deliberately date-only/UTC-midnight-safe and would
+ * be wrong here. Uses local time getters since these are real moment-in-time
+ * values (createdAt/reviewedAt), not UTC-midnight-stored calendar dates.
+ */
+export function formatDateTime(date: Date | string | null | undefined): string {
+  if (!date) return "—";
+  const d = typeof date === "string" ? new Date(date) : date;
+  if (Number.isNaN(d.getTime())) return "—";
+  const dd = String(d.getDate()).padStart(2, "0");
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const yyyy = d.getFullYear();
+  const hh = String(d.getHours()).padStart(2, "0");
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${dd}/${mm}/${yyyy}, ${hh}:${min}`;
+}

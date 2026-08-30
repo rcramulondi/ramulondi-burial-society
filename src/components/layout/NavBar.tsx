@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { auth, signOut } from "@/lib/auth";
+import { countUnreadNotifications } from "@/server/actions/notifications";
 import HamburgerMenu from "./HamburgerMenu";
 import {
   LayoutDashboard,
@@ -19,6 +20,8 @@ import {
   Calendar,
   Landmark,
   HelpCircle,
+  Bell,
+  UserCheck,
 } from "lucide-react";
 import type { AdminGroup } from "@prisma/client";
 
@@ -40,6 +43,7 @@ const ADMIN_LINKS: { href: string; label: string; icon: React.ReactNode; groups?
   { href: "/admin/members", label: "Members", icon: <Users className={iconClass} /> },
   { href: "/admin/rates", label: "Rates", icon: <Percent className={iconClass} />, groups: ["SUPER_ADMIN"] },
   { href: "/admin/claims", label: "Claims", icon: <FileCheck2 className={iconClass} /> },
+  { href: "/admin/beneficiary-approvals", label: "Beneficiary Approvals", icon: <UserCheck className={iconClass} /> },
   { href: "/admin/committee", label: "Committee", icon: <UsersRound className={iconClass} /> },
   { href: "/admin/meetings", label: "Meetings", icon: <Calendar className={iconClass} /> },
   { href: "/admin/expenses", label: "Expenses", icon: <Receipt className={iconClass} />, groups: ["SUPER_ADMIN", "TREASURER"] },
@@ -63,6 +67,7 @@ export default async function NavBar() {
   const session = await auth();
   if (!session?.user) return null;
 
+  const unreadCount = await countUnreadNotifications();
   const isAdmin = session.user.role === "ADMIN";
   let links = isAdmin ? ADMIN_LINKS.filter((l) => !l.groups || l.groups.includes(session.user.adminGroup!)) : MEMBER_LINKS;
 
@@ -94,6 +99,14 @@ export default async function NavBar() {
         </Link>
 
         <div className="flex items-center gap-3 shrink-0">
+          <Link href="/notifications" className="relative" aria-label={unreadCount > 0 ? `Notifications (${unreadCount} unread)` : "Notifications"}>
+            <Bell className="w-5 h-5" />
+            {unreadCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[16px] h-4 px-1 rounded-full bg-gold text-navy text-[10px] font-bold flex items-center justify-center">
+                {unreadCount > 9 ? "9+" : unreadCount}
+              </span>
+            )}
+          </Link>
           <div className="w-8 h-8 rounded-full bg-gold text-navy flex items-center justify-center text-xs font-bold" title={session.user.name ?? undefined}>
             {initialsFor(session.user.name)}
           </div>

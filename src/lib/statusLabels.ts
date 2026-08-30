@@ -11,6 +11,8 @@ export const BENEFICIARY_STATUS_LABELS: Record<BeneficiaryStatus, string> = {
   ACTIVE: "Active",
   INACTIVE: "Inactive",
   DECEASED: "Deceased",
+  PENDING_APPROVAL: "Pending approval",
+  REJECTED: "Rejected",
 };
 
 export const CLAIM_STATUS_LABELS: Record<ClaimStatus, string> = {
