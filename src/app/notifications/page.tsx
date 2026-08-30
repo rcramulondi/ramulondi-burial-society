@@ -1,3 +1,5 @@
+import { auth } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import {
   listMyNotifications,
   markNotificationReadForm,
@@ -12,6 +14,9 @@ export default async function NotificationsPage({
 }: {
   searchParams: Promise<{ page?: string }>;
 }) {
+  const session = await auth();
+  if (!session?.user) redirect("/login");
+
   const { page: pageParam } = await searchParams;
   const page = Math.max(1, Number(pageParam) || 1);
   const notifications = await listMyNotifications(page);
